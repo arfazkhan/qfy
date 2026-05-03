@@ -9,6 +9,7 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     qid_number = Column(String, unique=True, index=True, nullable=False)
+    entity_type = Column(String, default="individual", index=True) # individual, business
     name = Column(String, nullable=False)
     expiry_date = Column(Date, nullable=False)
     visit_count = Column(Integer, default=1)

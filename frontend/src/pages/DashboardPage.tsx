@@ -50,19 +50,22 @@ const StatCard = ({ icon, label, subLabel, value, trend, isPositive, colorClass 
         <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{value}</div>
       </div>
     </div>
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      fontSize: '0.75rem',
-      color: 'rgba(255,255,255,0.4)',
-      fontWeight: 500
-    }}>
-      <span style={{ color: isPositive ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}>
-        {isPositive ? '↑' : '↓'} {trend}
-      </span>
-      <span>from yesterday</span>
-    </div>
+    {trend !== '0%' && (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '0.75rem',
+        color: 'rgba(255,255,255,0.3)',
+        fontWeight: 500,
+        marginTop: '12px'
+      }}>
+        <span style={{ color: isPositive ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}>
+          {isPositive ? '↑' : '↓'} {trend}
+        </span>
+        <span>from yesterday</span>
+      </div>
+    )}
   </div>
 );
 
@@ -71,10 +74,15 @@ export const DashboardPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [stats, setStats] = useState({
     total_scans: 0,
-    existing_users: 0,
-    new_users: 0,
+    total_scans_trend: 0,
+    individual_visits: 0,
+    individual_visits_trend: 0,
+    business_visits: 0,
+    business_visits_trend: 0,
     expiring_soon: 0,
-    invalid_ids: 0
+    expiring_soon_trend: 0,
+    invalid_ids: 0,
+    invalid_ids_trend: 0
   });
   const [qidSearch, setQidSearch] = useState('');
   const [searchType, setSearchType] = useState<'individual' | 'business'>('individual');
@@ -186,10 +194,12 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const statsTimer = setInterval(fetchDashboardStats, 30000);
     fetchDashboardStats();
 
     return () => {
       clearInterval(timer);
+      clearInterval(statsTimer);
     };
   }, []);
 
@@ -198,10 +208,15 @@ export const DashboardPage: React.FC = () => {
       const data = await ApiClient.request<any>('/users/stats/summary', { auth: true });
       setStats({
         total_scans: data?.total_scans ?? 0,
-        existing_users: data?.existing_users ?? 0,
-        new_users: data?.new_users ?? 0,
+        total_scans_trend: data?.total_scans_trend ?? 0,
+        individual_visits: data?.individual_visits ?? 0,
+        individual_visits_trend: data?.individual_visits_trend ?? 0,
+        business_visits: data?.business_visits ?? 0,
+        business_visits_trend: data?.business_visits_trend ?? 0,
         expiring_soon: data?.expiring_soon ?? 0,
-        invalid_ids: data?.invalid_ids ?? 0
+        expiring_soon_trend: data?.expiring_soon_trend ?? 0,
+        invalid_ids: data?.invalid_ids ?? 0,
+        invalid_ids_trend: data?.invalid_ids_trend ?? 0
       });
     } catch (err) {
       console.error("Failed to fetch dashboard stats", err);
@@ -209,7 +224,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="dashboard-grid">
+    <div className="dashboard-grid" style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Top Header Section */}
       <header className="dashboard-top-header">
         <div className="time-display">
@@ -624,8 +639,8 @@ export const DashboardPage: React.FC = () => {
                   <Scan size={40} opacity={0.3} />
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Ready for Intelligence Lookup</p>
-                  <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>Enter digits on the left or scan a physical card</p>
+                  <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>System Ready for Lookup</p>
+                  <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>Enter QID / CR Number</p>
                 </div>
               </div>
             )}
@@ -634,8 +649,8 @@ export const DashboardPage: React.FC = () => {
       </section>
 
       {/* Overview Stats Section */}
-      <section className="overview-stats-section" style={{ marginTop: '48px' }}>
-        <div className="section-header" style={{ marginBottom: '24px' }}>
+      <section className="overview-stats-section" style={{ marginTop: '16px' }}>
+        <div className="section-header" style={{ marginBottom: '16px' }}>
           <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '2px' }}>OVERVIEW STATS</h2>
         </div>
         <div className="stats-cards-grid" style={{
@@ -646,48 +661,48 @@ export const DashboardPage: React.FC = () => {
           <StatCard
             icon={<Users size={20} color="#fbbf24" />}
             label="TOTAL VISITS"
-            value="1,248"
-            trend="12.5%"
-            isPositive={true}
+            value={stats.total_scans.toLocaleString()}
+            trend={`${stats.total_scans_trend > 0 ? '+' : ''}${stats.total_scans_trend}%`}
+            isPositive={stats.total_scans_trend >= 0}
             colorClass="glow-amber"
           />
           <StatCard
             icon={<UserIcon size={20} color="#10b981" />}
             label="INDIVIDUAL VISITS"
-            value="856"
-            trend="9.8%"
-            isPositive={true}
+            value={stats.individual_visits.toLocaleString()}
+            trend={`${stats.individual_visits_trend > 0 ? '+' : ''}${stats.individual_visits_trend}%`}
+            isPositive={stats.individual_visits_trend >= 0}
             colorClass="glow-green"
           />
           <StatCard
             icon={<Building2 size={20} color="#3b82f6" />}
             label="BUSINESS VISITS"
-            value="392"
-            trend="15.3%"
-            isPositive={true}
+            value={stats.business_visits.toLocaleString()}
+            trend={`${stats.business_visits_trend > 0 ? '+' : ''}${stats.business_visits_trend}%`}
+            isPositive={stats.business_visits_trend >= 0}
             colorClass="glow-blue"
           />
           <StatCard
             icon={<Clock size={20} color="#f97316" />}
             label="EXPIRING SOON"
             subLabel="(≤ 30 DAYS)"
-            value="24"
-            trend="4.0%"
-            isPositive={false}
+            value={stats.expiring_soon.toLocaleString()}
+            trend={`${stats.expiring_soon_trend > 0 ? '+' : ''}${stats.expiring_soon_trend}%`}
+            isPositive={stats.expiring_soon_trend <= 0} // For expiring, negative trend is often good (fewer expiring)
             colorClass="glow-orange"
           />
           <StatCard
             icon={<Shield size={20} color="#ef4444" />}
             label="INVALID IDS / CR"
-            value="16"
-            trend="6.7%"
-            isPositive={false}
+            value={stats.invalid_ids.toLocaleString()}
+            trend={`${stats.invalid_ids_trend > 0 ? '+' : ''}${stats.invalid_ids_trend}%`}
+            isPositive={stats.invalid_ids_trend <= 0} // For invalid, negative trend is good
             colorClass="glow-red"
           />
         </div>
       </section>
 
-      <footer className="dashboard-footer-info" style={{ marginTop: '32px', paddingBottom: '32px' }}>
+      <footer className="dashboard-footer-info" style={{ marginTop: 'auto', paddingBottom: '10px', paddingTop: '24px' }}>
         <div className="footer-left">
           <Shield size={16} color="var(--gold-primary)" />
           <span>Secure. Fast. Intelligent.</span>

@@ -21,7 +21,14 @@ async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Option
     return result.scalars().first()
 
 async def upsert_user(db: AsyncSession, user_data: dict) -> tuple[User, bool]:
-    existing_user = await get_user_by_qid(db, user_data["qid_number"])
+    # Auto-detect entity type based on ID length
+    qid = user_data.get("qid_number", "")
+    if len(qid) == 8:
+        user_data["entity_type"] = "business"
+    else:
+        user_data["entity_type"] = "individual"
+
+    existing_user = await get_user_by_qid(db, qid)
     
     if existing_user:
         # Update existing user

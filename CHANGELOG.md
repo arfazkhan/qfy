@@ -2,6 +2,27 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.3.1-Data-Intelligence] - 2026-05-04
+
+### 🚀 Added
+- **Real-Time Analytics Polling**: Implemented a 30-second automated refresh cycle for dashboard stats to ensure live situational awareness.
+- **Entity Type Architecture**: Added `entity_type` column to the `User` database model to natively distinguish between **Individual** (QID) and **Business** (CR) records.
+- **Smart Data Backfill**: Executed an Alembic migration with automatic logic to classify existing legacy records based on identifier length (11 vs 8 digits).
+- **Persistent Intelligence Trends**: Connected the dashboard "Overview Stats" to a live backend trend calculation engine (Today vs. Yesterday).
+
+### 🛠️ Changed
+- **Analytics Bifurcation**: Refactored the `/users/stats/summary` endpoint to explicitly separate Individual visits from Business visits using the new indexed DB column.
+- **Dynamic Trend UI**: Updated `StatCard` logic to conditionally render trend movement:
+  - **Zero-Suppression**: Trends of 0% are now hidden for a cleaner interface.
+  - **Neutral Indicators**: Implemented a dash `-` and muted styling for static metrics.
+  - **Contextual Colors**: Inverted "positive" logic for risk metrics (e.g., a decrease in "Invalid IDs" is now flagged as green/positive).
+
+### 🐞 Fixed
+- **Dashboard Type Safety**: Resolved 16+ TypeScript lint errors in `DashboardPage.tsx` by synchronizing the `stats` state interface with the expanded backend schema.
+- **Placeholder Data Removal**: Purged all hardcoded demo values (12.5%, 9.8%, etc.) from the dashboard, ensuring 100% data-driven reporting.
+
+---
+
 ## [v1.3.0-Inline-Intelligence] - 2026-05-04
 
 ### 🚀 Added

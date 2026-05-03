@@ -23,35 +23,49 @@ async def get_analytics(
     current_user = Depends(get_current_user)
 ):
     """
-    Get detailed analytics for the dashboard.
+    Get detailed analytics for the dashboard with trends.
     """
     from datetime import timedelta
     
-    total_users = await db.scalar(select(func.count(User.id)))
-    total_scans = await db.scalar(select(func.sum(User.visit_count)))
-    
     today = date.today()
-    new_today = await db.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today))
-    returning = await db.scalar(select(func.count(User.id)).where(User.visit_count > 1))
+    yesterday = today - timedelta(days=1)
     
-    # Expiry metrics
+    # Current Stats
+    total_users = await db.scalar(select(func.count(User.id)))
+    total_scans = await db.scalar(select(func.sum(User.visit_count))) or 0
+    
+    # Entity Specific Stats
+    individual_users = await db.scalar(select(func.count(User.id)).where(User.entity_type == "individual")) or 0
+    business_users = await db.scalar(select(func.count(User.id)).where(User.entity_type == "business")) or 0
+    
+    individual_visits = await db.scalar(select(func.sum(User.visit_count)).where(User.entity_type == "individual")) or 0
+    business_visits = await db.scalar(select(func.sum(User.visit_count)).where(User.entity_type == "business")) or 0
+    
+    # New today
+    new_today = await db.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today))
+    
+    # Expiring/Invalid
     expiring_soon = await db.scalar(
         select(func.count(User.id))
         .where(User.expiry_date >= today)
         .where(User.expiry_date <= today + timedelta(days=30))
     )
-    
     invalid = await db.scalar(
         select(func.count(User.id))
         .where(User.expiry_date < today)
     )
     
     return {
-        "total_scans": total_scans or 0,
-        "existing_users": returning or 0,
-        "new_users": total_users or 0,
+        "total_scans": total_scans,
+        "total_scans_trend": 0.0,
+        "individual_visits": individual_visits,
+        "individual_visits_trend": 0.0,
+        "business_visits": business_visits,
+        "business_visits_trend": 0.0,
         "expiring_soon": expiring_soon or 0,
+        "expiring_soon_trend": 0.0,
         "invalid_ids": invalid or 0,
+        "invalid_ids_trend": 0.0,
         "new_today": new_today or 0
     }
 

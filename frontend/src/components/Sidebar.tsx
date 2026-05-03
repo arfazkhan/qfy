@@ -5,8 +5,6 @@ import {
   Scan, 
   Search, 
   History, 
-  BarChart3, 
-  Bell, 
   Settings,
   ChevronDown,
   User as UserIcon
@@ -21,8 +19,6 @@ export const Sidebar: React.FC = () => {
     { icon: <Scan size={20} />, label: 'Scan ID', path: '/scan' },
     { icon: <Search size={20} />, label: 'Lookup', path: '/lookup' },
     { icon: <History size={20} />, label: 'History', path: '/history' },
-    { icon: <BarChart3 size={20} />, label: 'Reports', path: '/reports' },
-    { icon: <Bell size={20} />, label: 'Alerts', path: '/alerts' },
     { icon: <Settings size={20} />, label: 'Settings', path: '/settings' },
   ];
 
