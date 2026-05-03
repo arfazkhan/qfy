@@ -7,7 +7,8 @@ import {
   Search, 
   Scan, 
   RefreshCcw,
-  Trash2 
+  Trash2,
+  Hash
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
 
@@ -24,6 +25,7 @@ export interface IndividualResult {
   lastSeen?: string;
   visits?: number;
   frontImage?: string;
+  mobile_number?: string;
   errorMessage?: string;
 }
 
@@ -33,6 +35,7 @@ interface IndividualResultCardProps {
   onLogVisit: () => void;
   onRetry?: () => void;
   onScan?: () => void;
+  onDetails?: () => void;
   onDelete?: () => void;
 }
 
@@ -42,6 +45,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
   onLogVisit, 
   onRetry,
   onScan,
+  onDetails,
   onDelete
 }) => {
   const getStatusBadge = () => {
@@ -71,7 +75,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
         return (
           <div className="badge-danger-modern" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '4px 12px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <AlertTriangle size={12} />
-            INVALID
+            INACTIVE
           </div>
         );
       default:
@@ -100,7 +104,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
       case 'GRACE_PERIOD':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Expired</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Inactive</p>
             <h4 style={{ fontSize: '1.4rem', color: '#f59e0b', fontWeight: 800, margin: '8px 0' }}>{result.daysExpired} days ago</h4>
             <p style={{ fontSize: '0.75rem', color: '#f59e0b', opacity: 0.8 }}>Grace period: {result.graceDaysRemaining} days remaining</p>
           </div>
@@ -108,7 +112,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
       case 'INVALID':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Expired</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Inactive</p>
             <h4 style={{ fontSize: '1.4rem', color: 'var(--danger)', fontWeight: 800, margin: '8px 0' }}>{result.daysExpired} days ago</h4>
             <p style={{ fontSize: '0.75rem', color: 'var(--danger)', opacity: 0.8 }}>Expiry Date: {result.expiry}</p>
           </div>
@@ -247,7 +251,10 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
         <div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Last Seen</p>
           <h4 style={{ fontSize: '1.1rem', color: '#fff', fontWeight: 800, margin: '8px 0' }}>{result.lastSeen}</h4>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Visits: <span style={{ color: '#fff' }}>{result.visits}</span></p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--gold-primary)', fontWeight: 700, fontSize: '0.8rem' }}>
+            <Hash size={14} />
+            {result.mobile_number || 'No Mobile Registered'}
+          </div>
         </div>
       </div>
 
@@ -288,7 +295,11 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
           </button>
         )}
 
-        <button className="btn-luxury" style={{ flex: 1, height: '48px', fontSize: '0.8rem', letterSpacing: '1px' }}>
+        <button 
+          className="btn-luxury" 
+          style={{ flex: 1, height: '48px', fontSize: '0.8rem', letterSpacing: '1px' }}
+          onClick={onDetails}
+        >
           DETAILS
           <ExternalLink size={14} style={{ marginLeft: 'auto' }} />
         </button>

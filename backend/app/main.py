@@ -1,7 +1,7 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .routers import auth, scan, users
+from .routers import auth, scan, users, lookup
 import os
 from dotenv import load_dotenv
 
@@ -33,6 +33,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(scan.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(lookup.router, prefix="/api/v1")
 
 @app.get("/health")
 async def health_check():

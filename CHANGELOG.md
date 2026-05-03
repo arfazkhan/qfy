@@ -2,6 +2,50 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.2.0-Customer-Intelligence] - 2026-05-04
+
+### 🚀 Added
+- **User Intelligence Profiles**: Launched `UserDetailPage.tsx`, providing a high-fidelity dashboard for individual customer data, visit counts, and identity history.
+- **Visual Identity Audit**: High-resolution front/back ID scan previews integrated into customer profiles.
+- **Priority Re-Scan Banners**: Dynamic, prominent alert banners for expired or expiring IDs with a direct "RE-SCAN ID NOW" action.
+- **Date-Range History Filters**: Integrated a dual-calendar filter (From/To) on the History Page for precise audit lookups.
+- **Deep-Link Filtering**: Automatic filtering on History Page via `?qid=` URL parameters, enabling one-click audit transitions from profiles.
+- **Global Number Standards**: Integrated `react-phone-input-2` with custom dark-mode aesthetics for comprehensive international mobile support.
+
+### 🛠️ Changed
+- **Audit Archive Evolution**: Transformed the History Page into a read-only research tool, moving all management actions (re-scan, details) to the User Detail Page.
+- **Data Streamlining**: Removed redundant `Employer` and `Profession` fields from UI (Lookup, Scan, and Detail views) to align with actual OCR extraction capabilities.
+- **Search UI Polish**: Re-engineered the History search bar into a single-row luxury layout with integrated date pickers and focus animations.
+- **Mobile Workflow**: Refined the "Quick Digit Entry" to appear only for Qatar-based (+974) numbers, preventing UI clutter for international entries.
+
+### 🐞 Fixed
+- **Code Integrity Cleanup**: Resolved critical linting and reference errors (`isIntlMode`, `setEmployer`, `RefreshCcw`) across frontend modules.
+- **Date Picker Aesthetics**: Applied `color-scheme: dark` and CSS overrides to native date pickers to match the project's premium design system.
+- **Backend Filter Support**: Updated `lookup.py` logic to correctly handle `start_date` and `end_date` parameters.
+
+---
+
+## [v1.1.0-Mobile-Intelligence] - 2026-05-04
+
+### 🚀 Added
+- **Mobile Number Integration**: Complete end-to-end support for collecting and storing mobile numbers.
+- **Premium Mobile Modal**: Lightbox-style digit entry UI for Qatar numbers (+974) and international support.
+- **Advanced Lookup Page**: New page with complex filtering (Name, QID, Mobile, Nationality, Status).
+- **Backend Search**: Global search capabilities across the entire customer database.
+- **Status Tracking**: Dynamic calculation of Active, Inactive, Grace Period, and Expiring Soon statuses.
+
+### 🛠️ Changed
+- **Dashboard Search**: Updated to allow searching by mobile number in addition to QID.
+- **Result Cards**: Integrated mobile number display in both Dashboard and Lookup result views.
+- **Audit Labels**: Updated status terminology to "Inactive" and "Expiring Soon" per user preference.
+
+### 🐞 Fixed
+- **History Page Filter**: Resolved backend error in `lookup.py` that prevented date range filtering.
+- **Frontend Persistence**: Fixed `HistoryPage` to preserve query parameters (QID, dates) after navigation and page reloads.
+
+---
+
+
 ## [v1.0.0-Hardening] - 2026-05-04
 
 ### 🚀 Added

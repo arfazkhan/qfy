@@ -7,7 +7,7 @@ from sqlalchemy import select, func
 from typing import List
 from datetime import datetime, date
 from ..db.database import get_db
-from ..db.crud import get_user_by_qid, list_recent_users, update_user_fields, upsert_user
+from ..db.crud import get_user_by_qid, get_user_by_qid_or_mobile, list_recent_users, update_user_fields, upsert_user
 from ..middleware.auth import get_current_user, RoleChecker
 from ..schemas import UserRecord, UserBase, IDStatus
 from ..services.status_engine import calculate_id_status
@@ -55,15 +55,14 @@ async def get_analytics(
         "new_today": new_today or 0
     }
 
-@router.get("/{qid}", response_model=dict)
+@router.get("/{identifier}", response_model=dict)
 async def lookup_user(
-    qid: str, 
+    identifier: str, 
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Lookup a single customer by QID."""
-    result = await db.execute(select(User).where(User.qid_number == qid))
-    user = result.scalars().first()
+    """Lookup a single customer by QID or Mobile."""
+    user = await get_user_by_qid_or_mobile(db, identifier)
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

@@ -22,6 +22,7 @@ class UserBase(BaseModel):
     back_image: Optional[str] = None
     is_manual_edit: bool = False
     modified_fields: Optional[str] = None
+    mobile_number: Optional[str] = None
 
 class UserRecord(UserBase):
     id: UUID

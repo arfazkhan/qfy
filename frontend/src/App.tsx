@@ -4,6 +4,8 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { ScanPage } from './pages/ScanPage';
+import { LookupPage } from './pages/LookupPage';
+import { UserDetailPage } from './pages/UserDetailPage';
 import { useAuthStore } from './store/authStore';
 import { MainLayout } from './components/MainLayout';
 import './styles/main.css';
@@ -34,6 +36,14 @@ function App() {
         <Route
           path="/scan"
           element={isAuthenticated ? <MainLayout><ScanPage /></MainLayout> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/lookup"
+          element={isAuthenticated ? <MainLayout><LookupPage /></MainLayout> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/user/:id"
+          element={isAuthenticated ? <MainLayout><UserDetailPage /></MainLayout> : <Navigate to="/login" />}
         />
         <Route
           path="/"

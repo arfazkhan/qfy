@@ -12,12 +12,13 @@ import {
   X,
   Plus,
   Edit2,
-  Check,
-  RotateCw
+  Hash
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ApiClient } from '../api/client';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
 
 interface ImageState {
   file: File | null;
@@ -48,6 +49,8 @@ export const ScanPage: React.FC = () => {
   const [editedData, setEditedData] = useState<any>(null);
   const [modifiedFields, setModifiedFields] = useState<Set<string>>(new Set());
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [mobileNumber, setMobileNumber] = useState('974');
 
   useEffect(() => {
     if (scanResult?.user) {
@@ -149,15 +152,14 @@ export const ScanPage: React.FC = () => {
       setError('Please upload the back side image to proceed.');
       return;
     }
-    if (!editedData) return;
-
     try {
       const userData = {
         ...editedData,
         front_image: frontImage.base64,
         back_image: backImage.base64,
         manual_edit: modifiedFields.size > 0,
-        modified_fields: Array.from(modifiedFields)
+        modified_fields: Array.from(modifiedFields),
+        mobile_number: `+${mobileNumber}`
       };
       
       await ApiClient.post('/users/upsert', userData);
@@ -165,14 +167,113 @@ export const ScanPage: React.FC = () => {
         manual_rectification: modifiedFields.size > 0
       });
       
+      setIsMobileModalOpen(false);
       navigate('/dashboard');
     } catch (err: any) {
       setError('Failed to save record: ' + err.message);
     }
   };
 
+  const handleInitialSaveClick = () => {
+    if (!scanResult) {
+      setError('Please upload and scan the front side first.');
+      return;
+    }
+    // Removing the back image requirement as discussed or if it's optional
+    if (!editedData) return;
+    
+    setIsMobileModalOpen(true);
+  };
+
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+      <style>{`
+        .phone-input-luxury .form-control {
+          font-family: inherit !important;
+          border-color: var(--glass-border) !important;
+          transition: all 0.3s ease !important;
+        }
+        .phone-input-luxury .form-control:focus {
+          border-color: var(--gold-primary) !important;
+          box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1) !important;
+        }
+        .phone-input-luxury .flag-dropdown {
+          background: transparent !important;
+          border: none !important;
+        }
+        .phone-input-luxury .selected-flag {
+          background: transparent !important;
+          padding-left: 20px !important;
+        }
+        .phone-input-luxury .selected-flag:hover {
+          background: rgba(255,255,255,0.05) !important;
+        }
+        .phone-input-luxury .country-list {
+          background-color: #121212 !important;
+          border: 1px solid var(--glass-border) !important;
+          border-radius: 12px !important;
+          margin-top: 8px !important;
+          padding: 8px !important;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.6) !important;
+          width: 300px !important;
+        }
+        .phone-input-luxury .country-list .search {
+          padding: 8px 12px !important;
+          background-color: #121212 !important;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 10 !important;
+        }
+        .phone-input-luxury .country-list .search-box {
+          background-color: rgba(255,255,255,0.03) !important;
+          border: 1px solid var(--glass-border) !important;
+          border-radius: 8px !important;
+          color: #fff !important;
+          width: 100% !important;
+          padding: 10px 12px !important;
+          margin: 0 !important;
+        }
+        .phone-input-luxury .country-list .search-emoji {
+          display: none !important;
+        }
+        .phone-input-luxury .country-list .country {
+          padding: 10px 12px !important;
+          border-radius: 8px !important;
+          transition: all 0.2s ease !important;
+        }
+        .phone-input-luxury .country-list .country:hover {
+          background-color: rgba(255,255,255,0.05) !important;
+        }
+        .phone-input-luxury .country-list .country.highlight {
+          background-color: var(--gold-muted) !important;
+          color: var(--gold-primary) !important;
+        }
+        .phone-input-luxury .country-list .country-name {
+          font-weight: 500 !important;
+          color: #eee !important;
+        }
+        .phone-input-luxury .country-list .dial-code {
+          color: var(--text-muted) !important;
+        }
+        .phone-input-luxury .country-list .country.highlight .country-name,
+        .phone-input-luxury .country-list .country.highlight .dial-code {
+          color: inherit !important;
+        }
+        /* Custom scrollbar for dropdown */
+        .phone-input-luxury .country-list::-webkit-scrollbar {
+          width: 6px;
+        }
+        .phone-input-luxury .country-list::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .phone-input-luxury .country-list::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.1);
+          border-radius: 10px;
+        }
+        .phone-input-luxury .country-list::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.2);
+        }
+      `}</style>
       {/* Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
         <div>
@@ -479,7 +580,7 @@ export const ScanPage: React.FC = () => {
                   cursor: !scanResult ? 'not-allowed' : 'pointer',
                   filter: !scanResult ? 'grayscale(0.5)' : 'none'
                 }} 
-                onClick={handleSaveAndLog}
+                onClick={handleInitialSaveClick}
                 disabled={!scanResult}
               >
                 <CheckCircle2 size={18} style={{ marginRight: '10px' }} />
@@ -562,6 +663,162 @@ export const ScanPage: React.FC = () => {
           100% { transform: translateX(100%); }
         }
       `}</style>
+      {/* Mobile Number Modal */}
+      {isMobileModalOpen && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="modal-content-luxury animate-scale-up" style={{ width: '650px', padding: '40px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ background: 'var(--gold-muted)', padding: '12px', borderRadius: '12px' }}>
+                  <Hash size={24} color="var(--gold-primary)" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>MOBILE NUMBER</h2>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Enter contact number to complete log</p>
+                </div>
+              </div>
+              <button 
+                className="btn-icon" 
+                onClick={() => setIsMobileModalOpen(false)}
+                style={{ background: 'rgba(255,255,255,0.03)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', marginBottom: '12px', letterSpacing: '1px' }}>MOBILE NUMBER (INTERNATIONAL)</label>
+                <div className="phone-input-luxury">
+                  <PhoneInput
+                    country={'qa'}
+                    enableSearch={true}
+                    value={mobileNumber}
+                    onChange={(phone) => setMobileNumber(phone)}
+                    containerStyle={{ width: '100%' }}
+                    inputStyle={{
+                      width: '100%',
+                      height: '64px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '16px',
+                      color: '#fff',
+                      fontSize: '1.25rem',
+                      paddingLeft: '80px'
+                    }}
+                    buttonStyle={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '16px 0 0 16px',
+                      width: '70px'
+                    }}
+                    dropdownStyle={{
+                      background: '#121212',
+                      color: '#fff',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                    }}
+                    searchStyle={{
+                      background: '#1a1a1a',
+                      color: '#fff',
+                      borderBottom: '1px solid var(--glass-border)',
+                      margin: 0,
+                      width: '100%',
+                      padding: '10px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {mobileNumber.startsWith('974') && (
+                <div style={{ marginTop: '24px' }} className="animate-slide-in">
+                  <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', marginBottom: '12px', letterSpacing: '1px' }}>QUICK DIGIT ENTRY (QATAR)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '8px' }}>
+                    {[...Array(8)].map((_, i) => (
+                      <input
+                        key={i}
+                        id={`digit-${i}`}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        className="digit-box"
+                        value={(mobileNumber.startsWith('974') ? mobileNumber.slice(3) : '')[i] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          if (val) {
+                            let currentDigits = (mobileNumber.startsWith('974') ? mobileNumber.slice(3) : '').split('');
+                            currentDigits[i] = val;
+                            setMobileNumber('974' + currentDigits.join('').slice(0, 8));
+                            if (i < 7) document.getElementById(`digit-${i+1}`)?.focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Backspace') {
+                            let currentDigits = (mobileNumber.startsWith('974') ? mobileNumber.slice(3) : '').split('');
+                            if (!currentDigits[i] && i > 0) {
+                              currentDigits[i-1] = '';
+                              setMobileNumber('974' + currentDigits.join(''));
+                              document.getElementById(`digit-${i-1}`)?.focus();
+                            } else {
+                              currentDigits[i] = '';
+                              setMobileNumber('974' + currentDigits.join(''));
+                            }
+                          }
+                        }}
+                        style={{ 
+                          width: '100%', 
+                          height: '64px', 
+                          fontSize: '1.5rem', 
+                          fontWeight: 900, 
+                          textAlign: 'center', 
+                          background: 'rgba(255,255,255,0.03)', 
+                          border: '1px solid var(--glass-border)', 
+                          borderRadius: '12px', 
+                          color: 'var(--gold-primary)',
+                          outline: 'none'
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button 
+                className="btn-luxury" 
+                style={{ flex: 1, height: '64px' }}
+                onClick={() => setIsMobileModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-gold" 
+                style={{ flex: 2, height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
+                onClick={handleSaveAndLog}
+                disabled={mobileNumber.length < (mobileNumber.startsWith('974') ? 8 : 5)}
+              >
+                <CheckCircle2 size={20} />
+                Confirm & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

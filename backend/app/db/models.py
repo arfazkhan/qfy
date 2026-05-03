@@ -26,6 +26,7 @@ class User(Base):
     # Audit tracking
     is_manual_edit = Column(Boolean, default=False)
     modified_fields = Column(String, nullable=True) # JSON string of fields changed
+    mobile_number = Column(String, index=True, nullable=True)
 
 class Operator(Base):
     __tablename__ = "operators"

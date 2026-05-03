@@ -5,12 +5,13 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  RefreshCcw,
-  UserCheck,
   Shield,
-  Search as SearchIcon
+  Search as SearchIcon,
+  ExternalLink,
+  Calendar,
+  RefreshCcw
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiClient } from '../api/client';
 
 export const HistoryPage: React.FC = () => {
@@ -20,43 +21,48 @@ export const HistoryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // New Filter States
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const [searchParams] = useSearchParams();
+  const qidParam = searchParams.get('qid');
+
   useEffect(() => {
-    fetchRecent();
-  }, []);
-
-  const fetchRecent = async () => {
-    try {
-      const data = await ApiClient.request<any[]>('/users/', { auth: true });
-      setResults(data);
-    } catch (err) {
-      console.error(err);
+    if (qidParam) {
+      setSearchQuery(qidParam);
+      performSearch(qidParam);
+    } else {
+      performSearch();
     }
-  };
+  }, [qidParam]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery) return;
+  const performSearch = async (query?: string, start?: string, end?: string) => {
     setLoading(true);
     try {
-      const response = await ApiClient.request<any>(`/users/${searchQuery}`, { auth: true });
-      setResults([response.user]);
+      const params: any = {};
+      if (query || searchQuery) params.q = query || searchQuery;
+      if (start || startDate) params.start_date = start || startDate;
+      if (end || endDate) params.end_date = end || endDate;
+
+      const data = await ApiClient.get<any[]>('/lookup/users', params);
+      setResults(data);
     } catch (err) {
       setResults([]);
-      setToast("No records found for this QID");
+      setToast("Search failed or no records found");
     } finally {
       setLoading(false);
     }
   };
 
-  const markVisit = async (qid: string) => {
-    try {
-      await ApiClient.request(`/users/${qid}/visit`, { method: 'POST', auth: true });
-      setToast("Visit logged successfully");
-      fetchRecent();
-    } catch (err) {
-      setToast("Failed to log visit");
-    }
+  const fetchRecent = () => performSearch();
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    performSearch(searchQuery);
   };
+
 
   return (
     <div className="dashboard-grid">
@@ -66,28 +72,61 @@ export const HistoryPage: React.FC = () => {
       </div>
 
       <section className="search-section">
-        <div className="luxury-card search-container" style={{ padding: '24px 40px' }}>
-          <form onSubmit={handleSearch} className="search-bar-wrapper">
-            <div className="search-input-group">
-              <SearchIcon size={20} color="var(--text-muted)" />
+        <div className="luxury-card search-container" style={{ padding: '24px 32px' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="search-input-group" style={{ flex: 2 }}>
+              <SearchIcon size={18} color="var(--text-muted)" />
               <input
                 type="text"
                 placeholder="Search QID or Name..."
                 value={searchQuery}
+                style={{ background: 'none', border: 'none', color: '#fff', width: '100%', outline: 'none', padding: '8px' }}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button type="submit" className="btn-luxury search-btn">FIND</button>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => { setSearchQuery(''); fetchRecent(); }}
-                className="btn-secondary"
-                style={{ borderRadius: 'var(--radius-sm)' }}
-              >
-                CLEAR
-              </button>
-            )}
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 3 }}>
+              <div className="search-input-group" style={{ flex: 1, position: 'relative' }}>
+                <Calendar size={16} color="var(--gold-secondary)" />
+                <input
+                  type="date"
+                  className="date-input-luxury"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.75rem', outline: 'none', width: '100%' }}
+                />
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 800 }}>TO</span>
+              <div className="search-input-group" style={{ flex: 1, position: 'relative' }}>
+                <Calendar size={16} color="var(--gold-secondary)" />
+                <input
+                  type="date"
+                  className="date-input-luxury"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.75rem', outline: 'none', width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="submit" className="btn-gold" style={{ padding: '10px 24px', fontSize: '0.75rem', color: '#000' }}>SEARCH</button>
+              {(searchQuery || startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStartDate('');
+                    setEndDate('');
+                    fetchRecent();
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: '10px 16px', fontSize: '0.75rem' }}
+                >
+                  RESET
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </section>
@@ -105,10 +144,10 @@ export const HistoryPage: React.FC = () => {
               <div className="customer-main">
                 <div className="customer-avatar-box" style={{ overflow: 'hidden' }}>
                   {user.front_image ? (
-                    <img 
-                      src={ApiClient.resolveStaticUrl(user.front_image)} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      alt="" 
+                    <img
+                      src={ApiClient.resolveStaticUrl(user.front_image)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      alt=""
                     />
                   ) : (
                     <User size={20} color="var(--gold-primary)" />
@@ -136,17 +175,14 @@ export const HistoryPage: React.FC = () => {
               </div>
 
               <div className="customer-actions">
-                <button onClick={() => markVisit(user.qid_number)} className="btn-secondary small">
-                  <UserCheck size={14} />
-                  LOG VISIT
+                <button
+                  onClick={() => navigate(`/user/${user.qid_number}`)}
+                  className="btn-luxury small"
+                  style={{ width: '120px', justifyContent: 'center', gap: '8px' }}
+                >
+                  <ExternalLink size={14} />
+                  DETAILS
                 </button>
-
-                {isExpired(user.expiry_date) && (
-                  <button onClick={() => navigate('/dashboard')} className="btn-luxury small">
-                    <RefreshCcw size={14} />
-                    RESCAN
-                  </button>
-                )}
               </div>
             </motion.div>
           ))}
@@ -163,6 +199,43 @@ export const HistoryPage: React.FC = () => {
       {toast && <div className="toast">{toast}</div>}
 
       <style>{`
+        .search-input-group { 
+          display: flex; 
+          align-items: center; 
+          gap: 12px; 
+          background: rgba(255,255,255,0.03); 
+          padding: 8px 16px; 
+          border-radius: 12px; 
+          border: 1px solid var(--glass-border);
+          transition: 0.3s;
+        }
+        .search-input-group:focus-within {
+          border-color: var(--gold-primary);
+          background: rgba(197, 160, 89, 0.05);
+        }
+
+        .date-input-luxury::-webkit-calendar-picker-indicator {
+          filter: invert(1) sepia(100%) saturate(500%) hue-rotate(10deg);
+          cursor: pointer;
+        }
+
+        .date-input-luxury {
+          width: 100%;
+          color-scheme: dark;
+        }
+        .date-input-luxury::-webkit-calendar-picker-indicator {
+          background: transparent;
+          bottom: 0;
+          color: transparent;
+          cursor: pointer;
+          height: auto;
+          left: 0;
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: auto;
+        }
+
         .results-list { display: flex; flex-direction: column; gap: 12px; }
         .customer-row { 
           padding: 20px 32px; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.2fr; align-items: center; gap: 24px;

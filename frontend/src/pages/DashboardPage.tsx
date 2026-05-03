@@ -8,8 +8,6 @@ import {
   AlertOctagon,
   ArrowUpRight,
   ArrowDownRight,
-  Upload,
-  Usb,
   Sun,
   User as UserIcon,
   ChevronDown,
@@ -19,12 +17,11 @@ import {
   Landmark,
   UserCheck,
   Info,
-  AlertTriangle,
   Shield,
   Building2
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
-import { IndividualResultCard, IndividualResult, ResultStatus } from '../components/IndividualResultCard';
+import { IndividualResultCard, ResultStatus } from '../components/IndividualResultCard';
 
 const StatCard = ({ icon, label, subLabel, value, trend, isPositive, colorClass }: any) => (
   <div className="luxury-card stat-card-luxury" style={{ position: 'relative' }}>
@@ -105,6 +102,7 @@ export const DashboardPage: React.FC = () => {
           lastSeen: user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString() : 'Never',
           visits: user.visit_count,
           frontImage: user.front_image,
+          mobile_number: user.mobile_number,
           errorMessage: response.status_message
         });
       } catch (err: any) {
@@ -417,6 +415,7 @@ export const DashboardPage: React.FC = () => {
                     onLogVisit={handleLogVisit}
                     onRetry={handleSearch}
                     onScan={handleScan}
+                    onDetails={() => navigate(`/user/${lastResult.qid}`)}
                     onDelete={() => {
                       if (window.confirm('Are you sure you want to delete this record from the database?')) {
                         setLastResult(null);

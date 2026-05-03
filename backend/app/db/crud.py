@@ -1,12 +1,23 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import update, or_
 from .models import User
 from datetime import datetime
 from typing import Optional, List
 
 async def get_user_by_qid(db: AsyncSession, qid_number: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.qid_number == qid_number))
+    return result.scalars().first()
+
+async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Optional[User]:
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.qid_number == identifier,
+                User.mobile_number == identifier
+            )
+        )
+    )
     return result.scalars().first()
 
 async def upsert_user(db: AsyncSession, user_data: dict) -> tuple[User, bool]:
