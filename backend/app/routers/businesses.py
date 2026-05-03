@@ -1,0 +1,213 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import func
+from typing import List, Optional
+import os
+import uuid
+from datetime import date, datetime
+
+from ..db.database import get_db
+from ..db.business_models import Business, BusinessDocument, BusinessNote
+from ..db.models import User
+from ..db.business_logic import compute_business_status
+from ..schemas import BusinessCreate, BusinessDocumentCreate, BusinessNoteCreate
+from ..middleware.auth import get_current_user, RoleChecker
+
+router = APIRouter(prefix="/businesses", tags=["businesses"])
+
+@router.get("/search/{cr_number}")
+async def search_business(
+    cr_number: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Quick search for a business by CR number.
+    Returns compliance status and document summary.
+    """
+    result = await db.execute(
+        select(Business).where(Business.cr_number == cr_number)
+    )
+    business = result.scalars().first()
+    
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    # Get docs
+    docs_result = await db.execute(
+        select(BusinessDocument).where(BusinessDocument.business_id == business.id)
+    )
+    docs = docs_result.scalars().all()
+    
+    # Get latest note
+    note_result = await db.execute(
+        select(BusinessNote)
+        .where(BusinessNote.business_id == business.id)
+        .order_by(BusinessNote.created_at.desc())
+        .limit(1)
+    )
+    latest_note = note_result.scalars().first()
+    
+    # Recalculate status
+    status = compute_business_status(business, docs)
+    if status != business.status:
+        business.status = status
+        await db.commit()
+        
+    return {
+        "id": business.id,
+        "name": business.name,
+        "cr_number": business.cr_number,
+        "status": business.status,
+        "latest_note": latest_note.content if latest_note else None,
+        "document_summary": [
+            {"type": doc.document_type, "status": "valid" if (not doc.expiry_date or doc.expiry_date >= date.today()) else "expired"}
+            for doc in docs
+        ]
+    }
+
+@router.get("/{cr_number}")
+async def get_business_details(
+    cr_number: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Business).where(Business.cr_number == cr_number)
+    )
+    business = result.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    # Get owner info
+    owner = None
+    if business.owner_id:
+        owner_res = await db.execute(select(User).where(User.id == business.owner_id))
+        owner = owner_res.scalars().first()
+        
+    # Get authorized person info
+    auth_person = None
+    if business.authorized_person_id:
+        auth_res = await db.execute(select(User).where(User.id == business.authorized_person_id))
+        auth_person = auth_res.scalars().first()
+        
+    # Get docs
+    docs_res = await db.execute(select(BusinessDocument).where(BusinessDocument.business_id == business.id))
+    docs = docs_res.scalars().all()
+    
+    # Get notes
+    notes_res = await db.execute(
+        select(BusinessNote)
+        .where(BusinessNote.business_id == business.id)
+        .order_by(BusinessNote.created_at.desc())
+    )
+    notes = notes_res.scalars().all()
+    
+    # Refresh status just in case
+    current_status = compute_business_status(business, docs)
+    
+    return {
+        "id": business.id,
+        "name": business.name,
+        "cr_number": business.cr_number,
+        "cr_expiry_date": business.cr_expiry,
+        "status": current_status,
+        "owner": owner,
+        "authorized_person": auth_person,
+        "documents": docs,
+        "notes": notes
+    }
+
+@router.post("/upsert")
+async def upsert_business(
+    data: BusinessCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Check if exists
+    res = await db.execute(select(Business).where(Business.cr_number == data.cr_number))
+    business = res.scalars().first()
+    
+    expiry_date = datetime.strptime(data.cr_expiry_date, "%Y-%m-%d").date()
+    
+    if business:
+        business.name = data.name
+        business.cr_expiry = expiry_date
+        business.owner_id = data.owner_id
+        business.authorized_person_id = data.authorized_person_id
+    else:
+        business = Business(
+            name=data.name,
+            cr_number=data.cr_number,
+            cr_expiry=expiry_date,
+            owner_id=data.owner_id,
+            authorized_person_id=data.authorized_person_id,
+            status="INVALID" # Initial state
+        )
+        db.add(business)
+        
+    await db.commit()
+    await db.refresh(business)
+    return business
+
+@router.post("/{cr_number}/documents")
+async def add_or_update_document(
+    cr_number: str,
+    doc_data: BusinessDocumentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Find business
+    res = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = res.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    # Check if doc exists
+    res = await db.execute(
+        select(BusinessDocument)
+        .where(BusinessDocument.business_id == business.id, BusinessDocument.document_type == doc_data.type)
+    )
+    doc = res.scalars().first()
+    
+    expiry = None
+    if doc_data.expiry_date:
+        expiry = datetime.strptime(doc_data.expiry_date, "%Y-%m-%d").date()
+        
+    if doc:
+        doc.is_available = doc_data.is_available
+        doc.expiry_date = expiry
+    else:
+        doc = BusinessDocument(
+            business_id=business.id,
+            document_type=doc_data.type,
+            is_available=doc_data.is_available,
+            expiry_date=expiry
+        )
+        db.add(doc)
+        
+    await db.commit()
+    return {"status": "ok"}
+
+@router.post("/{cr_number}/notes")
+async def add_business_note(
+    cr_number: str,
+    note_data: BusinessNoteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Find business
+    res = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = res.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    note = BusinessNote(
+        business_id=business.id,
+        operator_id=current_user.id,
+        content=note_data.content
+    )
+    db.add(note)
+    await db.commit()
+    return {"status": "ok"}

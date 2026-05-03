@@ -7,7 +7,8 @@ import {
   History, 
   Settings,
   ChevronDown,
-  User as UserIcon
+  User as UserIcon,
+  Building2
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/dashboard' },
     { icon: <Scan size={20} />, label: 'Scan ID', path: '/scan' },
+    { icon: <Building2 size={20} />, label: 'Register Business', path: '/business/add' },
     { icon: <Search size={20} />, label: 'Lookup', path: '/lookup' },
     { icon: <History size={20} />, label: 'History', path: '/history' },
     { icon: <Settings size={20} />, label: 'Settings', path: '/settings' },

@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  User as UserIcon, 
-  Calendar, 
-  Hash, 
-  Globe, 
-  Clock, 
-  CheckCircle2, 
-  AlertTriangle, 
+import {
+  User as UserIcon,
+  Calendar,
+  Hash,
+  Globe,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
   ChevronLeft,
   History,
   Info,
   Trash2,
-  Edit2,
   RefreshCcw
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
@@ -94,10 +93,10 @@ export const UserDetailPage: React.FC = () => {
         backdropFilter: 'blur(10px)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ 
-            width: '48px', height: '48px', borderRadius: '50%', 
-            background: 'rgba(255,255,255,0.03)', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center' 
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.03)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center'
           }}>
             {isDanger ? <AlertTriangle size={24} color={iconColor} /> : <Clock size={24} color={iconColor} />}
           </div>
@@ -157,7 +156,7 @@ export const UserDetailPage: React.FC = () => {
       {/* Hero Profile Section */}
       <div className="luxury-card" style={{ padding: '40px', marginBottom: '32px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, right: 0, width: '300px', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.03))', pointerEvents: 'none' }} />
-        
+
         <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
           <div style={{ width: '160px', height: '160px', borderRadius: '24px', overflow: 'hidden', border: '2px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)', flexShrink: 0 }}>
             {user.front_image ? (
@@ -168,7 +167,7 @@ export const UserDetailPage: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
@@ -177,7 +176,7 @@ export const UserDetailPage: React.FC = () => {
               </div>
               {getStatusBadge()}
             </div>
-            
+
             <div style={{ display: 'flex', gap: '32px', marginTop: '32px' }}>
               <div>
                 <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px' }}>QATAR ID</p>
@@ -259,9 +258,9 @@ const DetailRow = ({ icon, label, value, isHighlight, valueColor }: any) => (
       {icon}
       <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{label}</span>
     </div>
-    <span style={{ 
-      fontSize: '0.9rem', 
-      fontWeight: isHighlight ? 800 : 700, 
+    <span style={{
+      fontSize: '0.9rem',
+      fontWeight: isHighlight ? 800 : 700,
       color: valueColor || '#fff',
       textAlign: 'right'
     }}>

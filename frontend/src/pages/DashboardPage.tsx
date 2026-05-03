@@ -3,17 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Scan,
   Users,
-  Clock,
-  AlertOctagon,
-  Sun,
-  User as UserIcon,
-  ExternalLink,
   CheckCircle2,
-  FileText,
-  Landmark,
-  UserCheck,
-  Shield,
+  Clock,
   Building2,
+  User as UserIcon,
+  Shield,
+  Sun,
+  AlertOctagon
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
 import { IndividualResultCard, ResultStatus } from '../components/IndividualResultCard';
@@ -135,9 +131,9 @@ export const DashboardPage: React.FC = () => {
         return;
       }
     } else {
-      const crRegex = /^\d{8}$/;
+      const crRegex = /^\d{5,12}$/;
       if (!crRegex.test(finalSearchValue)) {
-        setError("Please enter a valid 8-digit CR number.");
+        setError("Please enter a valid CR number.");
         return;
       }
     }
@@ -145,7 +141,37 @@ export const DashboardPage: React.FC = () => {
     setIsVisitLogged(false);
     setQidSearch(finalSearchValue); // Sync for internal use
 
-    if (searchType === 'individual') {
+    if (searchType === 'business') {
+      try {
+        const response = await ApiClient.request<any>(`/businesses/search/${finalSearchValue}`, { auth: true });
+        if (response) {
+          setLastResult({
+            type: 'business',
+            status: response.status,
+            name: response.name,
+            cr_number: response.cr_number,
+            latest_note: response.latest_note,
+            document_summary: response.document_summary
+          });
+        }
+      } catch (err: any) {
+        console.error("Business search error:", err);
+        if (err.status === 404) {
+          setLastResult({
+            type: 'business',
+            status: 'NOT_FOUND',
+            cr_number: finalSearchValue
+          });
+        } else {
+          setLastResult({
+            type: 'business',
+            status: 'SYSTEM_ERROR',
+            errorMessage: 'Business intelligence service unavailable.'
+          });
+        }
+      }
+    } else {
+      // Individual search
       try {
         const response = await ApiClient.get<any>(`/users/${finalSearchValue}`);
         const user = response.user;
@@ -181,27 +207,8 @@ export const DashboardPage: React.FC = () => {
           });
         }
       }
-    } else {
-      // Business search... 
-      setLastResult({
-        type: 'business',
-        status: 'NOT_FOUND',
-        name: 'NOT IMPLEMENTED',
-        qid: finalSearchValue
-      });
     }
   };
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    const statsTimer = setInterval(fetchDashboardStats, 30000);
-    fetchDashboardStats();
-
-    return () => {
-      clearInterval(timer);
-      clearInterval(statsTimer);
-    };
-  }, []);
 
   const fetchDashboardStats = async () => {
     try {
@@ -222,6 +229,17 @@ export const DashboardPage: React.FC = () => {
       console.error("Failed to fetch dashboard stats", err);
     }
   };
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const statsTimer = setInterval(fetchDashboardStats, 30000);
+    fetchDashboardStats();
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(statsTimer);
+    };
+  }, []);
 
   return (
     <div className="dashboard-grid" style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -521,92 +539,80 @@ export const DashboardPage: React.FC = () => {
 
                 {/* === BUSINESS RESULT CARD === */}
                 {lastResult.type === 'business' ? (
-                  <div className="result-card-modern" style={{ padding: '24px' }}>
-                    {/* Business Identity Row */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <div style={{
-                          width: '56px', height: '56px', borderRadius: '14px',
-                          background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.3)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          <Building2 size={28} color="var(--gold-primary)" />
-                        </div>
-                        <div>
-                          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>{lastResult.name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>CR Number: {lastResult.qid}</p>
-                        </div>
-                      </div>
-                      <span style={{
-                        padding: '4px 14px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.8px',
-                        background: lastResult.complianceStatus === 'NON-COMPLIANT' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        color: lastResult.complianceStatus === 'NON-COMPLIANT' ? '#ef4444' : 'var(--success)',
-                        border: `1px solid ${lastResult.complianceStatus === 'NON-COMPLIANT' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-                      }}>
-                        {lastResult.complianceStatus}
-                      </span>
-                    </div>
-
-                    {/* Compliance + Visit Stats Row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', padding: '0 4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Compliance Status</span>
-                        <span style={{
-                          padding: '3px 10px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.5px',
-                          background: lastResult.complianceStatus === 'NON-COMPLIANT' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                          color: lastResult.complianceStatus === 'NON-COMPLIANT' ? '#ef4444' : 'var(--success)'
-                        }}>
-                          {lastResult.complianceStatus}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '32px' }}>
-                        <div style={{ textAlign: 'right' }}>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '4px' }}>Last Visit</p>
-                          <p style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 700 }}>{lastResult.lastVisit}</p>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '4px' }}>Total Visits</p>
-                          <p style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 700 }}>{lastResult.totalVisits}</p>
-                        </div>
+                  lastResult.status === 'NOT_FOUND' ? (
+                    <div className="search-result-card not-found">
+                      <div className="not-found-content">
+                        <div className="not-found-icon">🏢</div>
+                        <h3>Business Not Found</h3>
+                        <p>CR: <strong>{lastResult.cr_number}</strong> is not in the system.</p>
+                        <button 
+                          className="create-btn"
+                          onClick={() => navigate(`/business/add?cr=${lastResult.cr_number}`)}
+                        >
+                          Register Business
+                        </button>
                       </div>
                     </div>
+                  ) : lastResult.status === 'SYSTEM_ERROR' ? (
+                    <div className="search-result-card system-error">
+                      <p>{lastResult.errorMessage}</p>
+                    </div>
+                  ) : (
+                    <div className="result-card-modern business-summary" style={{ padding: '24px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                          <div style={{
+                            width: '56px', height: '56px', borderRadius: '14px',
+                            background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <Building2 size={28} color="#3b82f6" />
+                          </div>
+                          <div>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>{lastResult.name}</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>CR Number: {lastResult.cr_number}</p>
+                          </div>
+                        </div>
+                        <div className={`status-pill ${lastResult.status.toLowerCase().replace('_', '-')}`} style={{
+                          padding: '6px 14px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800,
+                          background: lastResult.status === 'COMPLIANT' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          color: lastResult.status === 'COMPLIANT' ? '#10b981' : '#ef4444',
+                          border: `1px solid ${lastResult.status === 'COMPLIANT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                        }}>
+                          {lastResult.status.replace('_', ' ')}
+                        </div>
+                      </div>
 
-                    {/* Available Documents Section */}
-                    <div style={{ marginBottom: '20px' }}>
-                      <h4 style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '14px' }}>AVAILABLE DOCUMENTS</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {lastResult.documents?.map((doc: any, idx: number) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {doc.icon === 'user' ? <UserCheck size={15} color="var(--text-muted)" /> :
-                                doc.icon === 'landmark' ? <Landmark size={15} color="var(--text-muted)" /> :
-                                  <FileText size={15} color="var(--text-muted)" />}
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{doc.name}</span>
-                            </div>
-                            <span style={{
-                              fontSize: '0.65rem', fontWeight: 700, padding: '3px 10px', borderRadius: '4px',
-                              background: doc.available ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                              color: doc.available ? 'var(--success)' : '#ef4444',
-                              border: `1px solid ${doc.available ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`
-                            }}>
-                              {doc.available ? 'Available' : 'Not Available'}
+                      <div className="doc-checklist-mini" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                        {lastResult.document_summary?.map((doc: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>{doc.type}</span>
+                            <span style={{ color: doc.status === 'valid' ? '#10b981' : '#ef4444', fontSize: '0.9rem' }}>
+                              {doc.status === 'valid' ? '✅' : '❌'}
                             </span>
                           </div>
                         ))}
                       </div>
-                    </div>
 
-                    {/* View Full Details Button */}
-                    <button className="btn-luxury" style={{
-                      width: '100%', background: '#111', color: '#fff',
-                      border: '1px solid var(--glass-border)', borderRadius: '12px',
-                      height: '48px', fontSize: '0.8rem', letterSpacing: '1px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                    }}>
-                      <ExternalLink size={14} />
-                      VIEW FULL DETAILS
-                    </button>
-                  </div>
+                      {lastResult.latest_note && (
+                        <div className="latest-note-snippet" style={{ 
+                          background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '20px',
+                          borderLeft: '3px solid var(--gold-primary)'
+                        }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', display: 'block', marginBottom: '4px' }}>LATEST NOTE</span>
+                          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>"{lastResult.latest_note}"</p>
+                        </div>
+                      )}
+
+                      <button 
+                        className="btn-luxury" 
+                        onClick={() => navigate(`/business/${lastResult.cr_number}`)}
+                        style={{ width: '100%', height: '48px', borderRadius: '12px' }}
+                      >
+                        MANAGE COMPLIANCE
+                      </button>
+                    </div>
+                  )
                 ) : (
                   /* === INDIVIDUAL RESULT CARD === */
                   <IndividualResultCard

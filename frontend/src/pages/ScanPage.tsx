@@ -162,13 +162,23 @@ export const ScanPage: React.FC = () => {
         mobile_number: `+${mobileNumber}`
       };
       
-      await ApiClient.post('/users/upsert', userData);
+      const userResponse = await ApiClient.post<any>('/users/upsert', userData);
       await ApiClient.post(`/users/${userData.qid_number}/visit`, {
         manual_rectification: modifiedFields.size > 0
       });
       
       setIsMobileModalOpen(false);
-      navigate('/dashboard');
+      
+      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+      const role = new URLSearchParams(window.location.search).get('role');
+      
+      if (returnUrl) {
+        // Redirect back with the user ID and role context
+        const connector = returnUrl.includes('?') ? '&' : '?';
+        navigate(`${returnUrl}${connector}linked_id=${userResponse.id}&role=${role || 'owner'}`);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError('Failed to save record: ' + err.message);
     }

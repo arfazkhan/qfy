@@ -1,16 +1,13 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC = () => {
   return (
     <div className="app-shell">
       <Sidebar />
       <main className="main-content">
-        {children}
+        <Outlet />
       </main>
     </div>
   );

@@ -2,6 +2,32 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.4.0-Identity-Graph] - 2026-05-04
+
+### 🚀 Added
+- **Identity Graph Architecture**: Shifted from flat identity records to a relational model where Businesses reference Individuals as Sources of Truth.
+- **Business Compliance Engine**: Multi-tier status engine (INVALID / NON-COMPLIANT / PARTIAL / COMPLIANT) based on CR expiry, document presence, and linked identity validity.
+- **Operational Notes Timeline**: Centralized system for tracking document promises and operational context for businesses.
+- **IdentityPicker Component**: Reusable UI component for searching, linking, or scanning identities for business roles.
+- **Business Management Pages**: New detailed management views for onboarding (`BusinessFormPage`) and compliance monitoring (`BusinessDetailPage`).
+- **Dashboard Intelligence**: Instant search bifurcation for QID vs CR with immediate compliance summaries.
+
+### 🛠️ Changed
+- **Relational Refactoring**: Updated database schema with `businesses`, `business_documents`, and `business_notes` tables.
+- **Dashboard Integration**: Refactored `DashboardPage.tsx` to handle the new relational business results and "Not Found" registration workflows.
+
+### 🐞 Fixed
+- **Module Resolution Cleanup**: Resolved critical `App.tsx` import errors for Business pages by normalizing export structures.
+- **IdentityPicker Integrity**: Fixed broken `ApiClient` imports and synchronized prop signatures (`onLink`, `onUnlink`) with state management.
+- **UI Logic Hardening**: Corrected shorthand style properties (`pr`, `py`) in `BusinessDetailPage.tsx` and purged redundant Lucide icon imports across the suite.
+- **Form Feedback Engine**: Implemented linked user state previews in the Business registration flow to confirm identity associations before submission.
+- **Layout Routing Fix**: Refactored `MainLayout.tsx` to use `<Outlet />`, resolving the "missing children" prop error when used as a layout route in `App.tsx`.
+- **Backend UUID & Schema Sync**: Fixed a `StatementError` by correctly casting string identifiers to UUID objects and transitioned to JSON-based Pydantic schemas.
+- **Search & Navigation Hub**: Added "Register Business" to the sidebar and corrected the `IdentityPicker` to use standard user lookup endpoints with specialized 404 handling.
+- **Stateful Scan Return**: Implemented a `returnUrl` system in the `ScanPage` to automatically redirect and re-link new identities back to the registration form, eliminating workflow disconnection.
+
+---
+
 ## [v1.3.1-Data-Intelligence] - 2026-05-04
 
 ### 🚀 Added

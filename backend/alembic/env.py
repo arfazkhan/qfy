@@ -12,6 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.db.database import Base
 from app.db.models import User, Operator, RefreshToken
+from app.db.business_models import Business, BusinessDocument, BusinessNote
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

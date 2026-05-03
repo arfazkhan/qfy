@@ -6,10 +6,13 @@ import { HistoryPage } from './pages/HistoryPage';
 import { ScanPage } from './pages/ScanPage';
 import { LookupPage } from './pages/LookupPage';
 import { UserDetailPage } from './pages/UserDetailPage';
+import { BusinessDetailPage } from './pages/BusinessDetailPage';
+import { BusinessFormPage } from './pages/BusinessFormPage';
 import { useAuthStore } from './store/authStore';
 import { MainLayout } from './components/MainLayout';
 import './styles/main.css';
 
+// Main Application Component
 function App() {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const refreshSession = useAuthStore(state => state.refreshSession);
@@ -21,34 +24,22 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/login"
-          element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" />}
-        />
-        <Route
-          path="/dashboard"
-          element={isAuthenticated ? <MainLayout><DashboardPage /></MainLayout> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/history"
-          element={isAuthenticated ? <MainLayout><HistoryPage /></MainLayout> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/scan"
-          element={isAuthenticated ? <MainLayout><ScanPage /></MainLayout> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/lookup"
-          element={isAuthenticated ? <MainLayout><LookupPage /></MainLayout> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/user/:id"
-          element={isAuthenticated ? <MainLayout><UserDetailPage /></MainLayout> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/"
-          element={<Navigate to="/dashboard" />}
-        />
+        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
+        
+        <Route element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/scan" element={<ScanPage />} />
+          <Route path="/lookup" element={<LookupPage />} />
+          <Route path="/user/:id" element={<UserDetailPage />} />
+          
+          {/* Business Compliance Routes */}
+          <Route path="/business/:id" element={<BusinessDetailPage />} />
+          <Route path="/business/add" element={<BusinessFormPage />} />
+          
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+        </Route>
+        
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>

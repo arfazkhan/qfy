@@ -61,3 +61,19 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+# Business Compliance Schemas
+class BusinessCreate(BaseModel):
+    name: str
+    cr_number: str
+    cr_expiry_date: str # ISO Date string
+    owner_id: Optional[UUID] = None
+    authorized_person_id: Optional[UUID] = None
+
+class BusinessDocumentCreate(BaseModel):
+    type: str
+    is_available: bool = False
+    expiry_date: Optional[str] = None
+
+class BusinessNoteCreate(BaseModel):
+    content: str

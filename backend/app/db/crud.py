@@ -10,14 +10,27 @@ async def get_user_by_qid(db: AsyncSession, qid_number: str) -> Optional[User]:
     return result.scalars().first()
 
 async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Optional[User]:
-    result = await db.execute(
-        select(User).where(
-            or_(
-                User.qid_number == identifier,
-                User.mobile_number == identifier
+    import uuid
+    # Check if identifier is a UUID
+    is_uuid = False
+    try:
+        uuid.UUID(identifier)
+        is_uuid = True
+    except:
+        pass
+
+    if is_uuid:
+        u_id = uuid.UUID(identifier)
+        result = await db.execute(select(User).where(User.id == u_id))
+    else:
+        result = await db.execute(
+            select(User).where(
+                or_(
+                    User.qid_number == identifier,
+                    User.mobile_number == identifier
+                )
             )
         )
-    )
     return result.scalars().first()
 
 async def upsert_user(db: AsyncSession, user_data: dict) -> tuple[User, bool]:
