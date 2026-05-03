@@ -321,6 +321,16 @@ body {
 .stat-icon-orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
 .stat-icon-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
+.glow-amber { background: rgba(245, 158, 11, 0.1); box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+.glow-green { background: rgba(16, 185, 129, 0.1); box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+.glow-blue { background: rgba(59, 130, 246, 0.1); box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+.glow-orange { background: rgba(249, 115, 22, 0.1); box-shadow: 0 0 20px rgba(249, 115, 22, 0.15); }
+.glow-red { background: rgba(239, 68, 68, 0.1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
 .search-btn-rect {
   border-radius: 8px !important;
   height: 100%;

@@ -67,12 +67,16 @@ async def lookup_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    status, message = calculate_id_status(user.expiry_date)
+    res = calculate_id_status(user.expiry_date)
     
     return {
         "user": UserRecord.model_validate(user),
-        "status": status,
-        "status_message": message
+        "status": res["status"],
+        "status_message": res["message"],
+        "days_left": res["days_left"],
+        "days_expired": res["days_expired"],
+        "grace_days_remaining": res["grace_days_remaining"],
+        "is_expired": res["is_expired"]
     }
 
 @router.get("/", response_model=List[UserRecord])

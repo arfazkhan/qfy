@@ -7,7 +7,6 @@ import {
   Search, 
   Scan, 
   RefreshCcw,
-  Trash2,
   Hash
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
@@ -36,7 +35,6 @@ interface IndividualResultCardProps {
   onRetry?: () => void;
   onScan?: () => void;
   onDetails?: () => void;
-  onDelete?: () => void;
 }
 
 export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({ 
@@ -46,7 +44,6 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
   onRetry,
   onScan,
   onDetails,
-  onDelete
 }) => {
   const getStatusBadge = () => {
     switch (result.status) {
@@ -221,27 +218,6 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {(result.status === 'GRACE_PERIOD' || result.status === 'INVALID') && (
-            <button 
-              onClick={onDelete}
-              style={{ 
-                background: 'rgba(239, 68, 68, 0.05)', 
-                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                color: 'var(--danger)', 
-                width: '36px', 
-                height: '36px', 
-                borderRadius: '8px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: '0.2s'
-              }}
-              title="Delete from database"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
           {getStatusBadge()}
         </div>
       </div>

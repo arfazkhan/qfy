@@ -2,6 +2,27 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.3.0-Inline-Intelligence] - 2026-05-04
+
+### 🚀 Added
+- **Inline Intelligence Grid**: Replaced modal-based lookups with an integrated 11-digit (QID) and 8-digit (CR) entry grid directly on the dashboard.
+- **Contextual Search Tabs**: Integrated "Individual" and "Business" mode toggles into inline tabs above the input area for faster navigation.
+- **Auto-Normalization Logic**: Implemented intelligent leading-zero padding for CR numbers, autonomously fulfilling the 8-digit standard from shorter entries.
+- **Digit Flow Engine**: High-fidelity auto-focus and backspace logic for digit boxes, providing a premium, native-app data entry feel.
+- **Input Clarity Labels**: Added explicit guidance labels ("Enter Qatar ID Number", etc.) and updated subheaders for better situational awareness.
+
+### 🛠️ Changed
+- **Overview Stats Redesign**: Rebuilt the stats section with a compact, 5-column grid featuring icon-glow effects (Amber, Green, Blue, Orange, Red) and high-density labels.
+- **UI De-cluttering**: Removed redundant "SCAN ID CARD" CTA from the dashboard to focus users on the primary lookup grid.
+- **Strict Validation**: Enforced strict length requirements (11 for QID, 8 for CR) at the UI level to prevent illegal backend queries.
+- **Search Logic Sync**: Unified the `handleSearch` engine to prioritize joined digit state with automatic UI feedback on padding.
+
+### 🐞 Fixed
+- **JSX Structural Integrity**: Resolved critical Vite/Babel parsing errors by re-normalizing the `DashboardPage.tsx` section hierarchy.
+- **Legacy State Cleanup**: Purged unused `isSearchDropdownOpen` and redundant search-prefix logic to streamline the frontend bundle.
+
+---
+
 ## [v1.2.0-Customer-Intelligence] - 2026-05-04
 
 ### 🚀 Added
