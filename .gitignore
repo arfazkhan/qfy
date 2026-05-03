@@ -18,7 +18,8 @@ dist-ssr/
 .vscode/
 
 # Project Specific
-backend/qfy.db
+*.db
+*.sqlite3
 backend/static/uploads/*
 !backend/static/uploads/.gitkeep
 backend/alembic/versions/__pycache__/
