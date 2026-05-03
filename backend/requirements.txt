@@ -1,0 +1,17 @@
+fastapi>=0.115
+uvicorn[standard]
+paddlepaddle
+paddleocr
+sqlalchemy[asyncio]
+asyncpg
+aiosqlite
+python-multipart
+pillow
+opencv-python-headless
+python-dotenv
+alembic
+httpx
+python-jose[cryptography]
+passlib[bcrypt]
+pytest
+pytest-asyncio
