@@ -13,7 +13,7 @@ interface IdentityPickerProps {
     expiry_date: string;
   } | null;
   onUnlink: () => void;
-  role?: 'owner' | 'authorized';
+  role?: 'owner' | 'authorized' | 'manager';
 }
 
 export const IdentityPicker: React.FC<IdentityPickerProps> = ({
