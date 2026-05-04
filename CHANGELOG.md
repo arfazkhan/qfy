@@ -2,6 +2,22 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.6.1-Privacy-Aesthetics] - 2026-05-04
+
+### 🚀 Added
+- **Luxury Initial-Based Avatars**: Replaced sensitive, utility-driven ID scan avatars with high-fidelity, initial-based luxury placeholders across the entire application (Dashboard, Lookup, History, and User Details).
+- **Privacy-by-Design**: Decoupled user identity from sensitive ID card scans in the UI to satisfy privacy standards for high-margin retail environments and luxury branding.
+
+### 🛠️ Changed
+- **Premium Placeholder Logic**: Implemented a unified `linear-gradient` (Charcoal/Gold) styling for all user avatars, ensuring consistent branding across all screens.
+- **Action Banner Refinement**: Restored and enhanced the "Action Required" banner in `UserDetailPage` with better visibility and a corrected `Clock` icon.
+
+### 🐞 Fixed
+- **Missing Icon Variable**: Corrected a CSS variable error where `--amber` was used instead of `--warning` in the status banners.
+- **UI Consistency Audit**: Refactored `LookupPage.tsx` and `HistoryPage.tsx` to align their customer list views with the new privacy-first design system.
+
+---
+
 ## [v1.6.0-Hybrid-Storage] - 2026-05-04
 
 ### 🚀 Added

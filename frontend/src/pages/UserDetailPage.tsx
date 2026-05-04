@@ -79,7 +79,7 @@ export const UserDetailPage: React.FC = () => {
     const isDanger = user.status === 'INVALID';
     const bgColor = isDanger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)';
     const borderColor = isDanger ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)';
-    const iconColor = isDanger ? 'var(--danger)' : 'var(--amber)';
+    const iconColor = isDanger ? 'var(--danger)' : 'var(--warning)';
 
     return (
       <div className="animate-slide-in" style={{
@@ -96,8 +96,10 @@ export const UserDetailPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{
             width: '48px', height: '48px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.03)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center'
+            background: isDanger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+            display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${borderColor}`
           }}>
             {isDanger ? <AlertTriangle size={24} color={iconColor} /> : <Clock size={24} color={iconColor} />}
           </div>
@@ -160,13 +162,26 @@ export const UserDetailPage: React.FC = () => {
 
         <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
           <div style={{ width: '160px', height: '160px', borderRadius: '24px', overflow: 'hidden', border: '2px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)', flexShrink: 0 }}>
-            {user.front_image ? (
-              <img src={ApiClient.resolveStaticUrl(user.front_image, user.storage_mode as any)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
-            ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                <UserIcon size={48} />
-              </div>
-            )}
+            {(() => {
+              const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+              return (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                  color: 'var(--gold-primary)',
+                  fontSize: '3rem',
+                  fontWeight: 900,
+                  letterSpacing: '2px',
+                  border: '1px solid var(--glass-border)'
+                }}>
+                  {initials}
+                </div>
+              );
+            })()}
           </div>
 
           <div style={{ flex: 1 }}>

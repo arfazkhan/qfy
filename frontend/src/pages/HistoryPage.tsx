@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User,
   Clock,
   CheckCircle,
   AlertTriangle,
@@ -143,15 +142,25 @@ export const HistoryPage: React.FC = () => {
             >
               <div className="customer-main">
                 <div className="customer-avatar-box" style={{ overflow: 'hidden' }}>
-                  {user.front_image ? (
-                    <img
-                      src={ApiClient.resolveStaticUrl(user.front_image)}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      alt=""
-                    />
-                  ) : (
-                    <User size={20} color="var(--gold-primary)" />
-                  )}
+                  {(() => {
+                    const initials = user.name ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+                    return (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                        color: 'var(--gold-primary)',
+                        fontSize: '1rem',
+                        fontWeight: 900,
+                        letterSpacing: '1px'
+                      }}>
+                        {initials}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="customer-info">
                   <span className="customer-name">{user.name}</span>

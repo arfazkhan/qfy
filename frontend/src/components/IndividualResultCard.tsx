@@ -202,15 +202,26 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
               overflow: 'hidden'
             }}
           >
-            {result.frontImage ? (
-              <img 
-                src={ApiClient.resolveStaticUrl(result.frontImage)} 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                alt="" 
-              />
-            ) : (
-              <UserIcon size={32} color="var(--text-muted)" />
-            )}
+            {(() => {
+              const initials = result.name ? result.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+              return (
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                  color: 'var(--gold-primary)',
+                  fontSize: '1.2rem',
+                  fontWeight: 900,
+                  letterSpacing: '1px',
+                  border: '1px solid var(--glass-border)'
+                }}>
+                  {initials}
+                </div>
+              );
+            })()}
           </div>
           <div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>{result.name}</h3>

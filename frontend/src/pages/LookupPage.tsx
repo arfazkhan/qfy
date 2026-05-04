@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  User as UserIcon, 
+import {
+  Search,
+  Filter,
   ChevronRight,
   Hash,
   Globe
@@ -28,7 +27,7 @@ export const LookupPage: React.FC = () => {
   const navigate = useNavigate();
   const [results, setResults] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Filters
   const [query, setQuery] = useState('');
   const [nationality, setNationality] = useState('');
@@ -64,7 +63,7 @@ export const LookupPage: React.FC = () => {
   const getStatusBadgeClass = (expiryStr: string) => {
     const expiry = new Date(expiryStr);
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
     const diff = expiry.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
@@ -81,7 +80,7 @@ export const LookupPage: React.FC = () => {
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>LOOKUP</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>Advanced customer search and data filtering</p>
         </div>
-        <button 
+        <button
           className={`btn-luxury ${isFilterVisible ? 'active' : ''}`}
           onClick={() => setIsFilterVisible(!isFilterVisible)}
           style={{ background: isFilterVisible ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)', padding: '12px 24px' }}
@@ -99,7 +98,7 @@ export const LookupPage: React.FC = () => {
               <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '8px', display: 'block' }}>GLOBAL SEARCH</label>
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input 
+                <input
                   placeholder="Name, QID or Mobile..."
                   className="input-luxury"
                   style={{ width: '100%', paddingLeft: '44px' }}
@@ -130,12 +129,12 @@ export const LookupPage: React.FC = () => {
                   { id: 'GRACE_PERIOD', label: 'Grace Period' },
                   { id: 'INVALID', label: 'Inactive' }
                 ].map(s => (
-                  <button 
+                  <button
                     key={s.id}
                     className={`btn-luxury ${status === s.id ? 'active' : ''}`}
-                    style={{ 
-                      padding: '8px', 
-                      fontSize: '0.65rem', 
+                    style={{
+                      padding: '8px',
+                      fontSize: '0.65rem',
                       background: status === s.id ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)',
                       border: status === s.id ? '1px solid var(--gold-primary)' : '1px solid transparent'
                     }}
@@ -151,14 +150,14 @@ export const LookupPage: React.FC = () => {
             <div className="filter-group">
               <label style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '8px', display: 'block' }}>AUDIT STATUS</label>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
+                <button
                   className={`btn-luxury ${isManual === true ? 'active' : ''}`}
                   style={{ flex: 1, padding: '8px', fontSize: '0.65rem', background: isManual === true ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)' }}
                   onClick={() => setIsManual(isManual === true ? null : true)}
                 >
                   Manually Edited
                 </button>
-                <button 
+                <button
                   className={`btn-luxury ${isManual === false ? 'active' : ''}`}
                   style={{ flex: 1, padding: '8px', fontSize: '0.65rem', background: isManual === false ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)' }}
                   onClick={() => setIsManual(isManual === false ? null : false)}
@@ -168,8 +167,8 @@ export const LookupPage: React.FC = () => {
               </div>
             </div>
 
-            <button 
-              className="btn-luxury" 
+            <button
+              className="btn-luxury"
               style={{ width: '100%', marginTop: '8px', background: 'rgba(239, 68, 68, 0.05)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.1)' }}
               onClick={() => {
                 setQuery('');
@@ -194,22 +193,35 @@ export const LookupPage: React.FC = () => {
               {results.map((user) => (
                 <div key={user.id} className="luxury-card animate-scale-up" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', gap: '16px' }}>
-                    <div style={{ 
-                      width: '80px', 
-                      height: '80px', 
-                      borderRadius: '12px', 
-                      overflow: 'hidden', 
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
                       border: '1px solid var(--glass-border)',
                       background: 'rgba(255,255,255,0.02)',
                       flexShrink: 0
                     }}>
-                      {user.front_image ? (
-                        <img src={ApiClient.resolveStaticUrl(user.front_image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
-                      ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                          <UserIcon size={24} />
-                        </div>
-                      )}
+                      {(() => {
+                        const initials = user.name ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+                        return (
+                          <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
+                            color: 'var(--gold-primary)',
+                            fontSize: '1.4rem',
+                            fontWeight: 900,
+                            letterSpacing: '1px',
+                            border: '1px solid var(--glass-border)'
+                          }}>
+                            {initials}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -249,8 +261,8 @@ export const LookupPage: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     </div>
-                    <button 
-                      className="btn-icon-luxury" 
+                    <button
+                      className="btn-icon-luxury"
                       onClick={() => navigate(`/user/${user.qid_number}`)}
                       style={{ background: 'var(--gold-muted)', border: 'none', color: 'var(--gold-primary)', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
                     >
