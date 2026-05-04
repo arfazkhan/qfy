@@ -289,3 +289,19 @@ async def add_business_note(
     db.add(note)
     await db.commit()
     return {"status": "ok"}
+
+@router.delete("/{cr_number}")
+async def delete_business(
+    cr_number: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Delete a business record by CR number."""
+    res = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = res.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    await db.delete(business)
+    await db.commit()
+    return {"status": "success", "message": f"Business {cr_number} deleted successfully"}

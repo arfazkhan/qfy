@@ -178,3 +178,18 @@ async def mark_visit(
     await db.commit()
     await db.refresh(user)
     return UserRecord.model_validate(user)
+
+@router.delete("/{identifier}")
+async def delete_user(
+    identifier: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Delete a user record by QID or ID."""
+    user = await get_user_by_qid_or_mobile(db, identifier)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.delete(user)
+    await db.commit()
+    return {"status": "success", "message": f"User {identifier} deleted successfully"}

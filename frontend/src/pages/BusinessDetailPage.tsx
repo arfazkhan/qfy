@@ -66,6 +66,20 @@ export const BusinessDetailPage: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    const confirmed = window.confirm(`Are you sure you want to delete ${business.name}? This will also delete all linked documents and notes.`);
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await ApiClient.delete(`/businesses/${cr_number}`);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete business');
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -123,14 +137,23 @@ export const BusinessDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ 
-          background: `${getStatusColor(business.status)}10`, 
-          border: `1px solid ${getStatusColor(business.status)}40`, 
-          padding: '24px 40px', borderRadius: '24px', textAlign: 'center',
-          boxShadow: `0 10px 30px ${getStatusColor(business.status)}10`
-        }}>
-          <p style={{ fontSize: '0.7rem', fontWeight: 800, color: getStatusColor(business.status), letterSpacing: '2px', marginBottom: '8px' }}>COMPLIANCE STATUS</p>
-          <h2 style={{ fontSize: '2rem', fontWeight: 900, color: getStatusColor(business.status), letterSpacing: '1px' }}>{business.status.replace('_', ' ')}</h2>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button 
+            onClick={handleDelete}
+            className="btn-luxury" 
+            style={{ padding: '12px 24px', fontSize: '0.75rem', color: 'var(--danger)', height: 'fit-content' }}
+          >
+            DELETE BUSINESS
+          </button>
+          <div style={{ 
+            background: `${getStatusColor(business.status)}10`, 
+            border: `1px solid ${getStatusColor(business.status)}40`, 
+            padding: '24px 40px', borderRadius: '24px', textAlign: 'center',
+            boxShadow: `0 10px 30px ${getStatusColor(business.status)}10`
+          }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: 800, color: getStatusColor(business.status), letterSpacing: '2px', marginBottom: '8px' }}>COMPLIANCE STATUS</p>
+            <h2 style={{ fontSize: '2rem', fontWeight: 900, color: getStatusColor(business.status), letterSpacing: '1px' }}>{business.status.replace('_', ' ')}</h2>
+          </div>
         </div>
       </div>
 

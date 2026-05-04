@@ -118,6 +118,22 @@ export const UserDetailPage: React.FC = () => {
     );
   };
 
+  const handleDelete = async () => {
+    if (!user) return;
+    
+    const confirmed = window.confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await ApiClient.delete(`/users/${user.qid_number}`);
+      navigate('/lookup');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete user');
+      setLoading(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
       <div className="spinner-gold" />
@@ -147,7 +163,11 @@ export const UserDetailPage: React.FC = () => {
           <button className="btn-luxury" style={{ padding: '10px 20px', fontSize: '0.75rem' }} onClick={() => navigate(`/history?qid=${user.qid_number}`)}>
             <History size={16} /> VISIT LOGS
           </button>
-          <button className="btn-luxury" style={{ padding: '10px 20px', fontSize: '0.75rem', color: 'var(--danger)' }}>
+          <button 
+            className="btn-luxury" 
+            style={{ padding: '10px 20px', fontSize: '0.75rem', color: 'var(--danger)' }}
+            onClick={handleDelete}
+          >
             <Trash2 size={16} /> DELETE
           </button>
         </div>

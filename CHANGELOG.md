@@ -2,6 +2,15 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.5-Deletion-Lifecycle] - 2026-05-04
+
+### 🚀 Added
+- **User Deletion**: Implemented `DELETE` endpoint and fixed the non-functional delete button on `UserDetailPage`.
+- **Business Deletion**: Added administrative deletion for businesses in `BusinessDetailPage` and backend.
+- **Safety**: Integrated browser confirmation dialogs to prevent accidental data loss.
+
+---
+
 ## [v1.8.4-Atomic-Registration] - 2026-05-04
 
 ### 🚀 Added
