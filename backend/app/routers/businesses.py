@@ -220,16 +220,18 @@ async def add_or_update_document(
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    # Find business
+    # 1. Get Business
     res = await db.execute(select(Business).where(Business.cr_number == cr_number))
     business = res.scalars().first()
+    
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
-        
-    # Check if doc exists
+    
+    # 2. Add or Update Document
     res = await db.execute(
         select(BusinessDocument)
-        .where(BusinessDocument.business_id == business.id, BusinessDocument.document_type == document_type)
+        .where(BusinessDocument.business_id == business.id)
+        .where(BusinessDocument.document_type == document_type)
     )
     doc = res.scalars().first()
     

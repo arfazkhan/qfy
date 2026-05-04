@@ -2,6 +2,31 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.4-Atomic-Registration] - 2026-05-04
+
+### 🚀 Added
+- **Atomic Registration**: Implemented deferred uploads in `BusinessFormPage` to ensure data integrity.
+- **Frontend Feedback**: Added success pulse animations and filename previews to `DocumentUploadRow`.
+- **Automatic Cleanup**: Discarded "Auto-Initialization" skeleton records in favor of atomic saves.
+
+---
+
+## [v1.8.3-Router-Hardening] - 2026-05-04
+
+### 🚀 Added
+- **Input Validation**: Added `400 Bad Request` handling for malformed date strings in business routers.
+- **Auto-Initialization**: Introduced temporary skeleton creation for document uploads (v1).
+
+---
+
+## [v1.8.2-Multipart-Fix] - 2026-05-04
+
+### 🚀 Added
+- **Multipart Fix**: Resolved 'Missing boundary in multipart' error by removing manual Content-Type headers in `ApiClient` calls.
+- **Upload Resilience**: Improved frontend-to-backend binary data serialization.
+
+---
+
 ## [v1.8.1-System-Hardening] - 2026-05-04
 
 ### 🚀 Added

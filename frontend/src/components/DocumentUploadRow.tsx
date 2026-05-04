@@ -19,27 +19,41 @@ interface DocumentUploadRowProps {
     original_filename?: string;
   };
   onUpdate: () => void;
+  onFileSelect?: (file: File, expiry: string) => void;
+  isNew?: boolean;
 }
 
 export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
   crNumber,
   docType,
   existingDoc,
-  onUpdate
+  onUpdate,
+  onFileSelect,
+  isNew = false
 }) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [expiryDate, setExpiryDate] = useState(existingDoc?.expiry_date || '');
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    await uploadFile(file);
+    if (onFileSelect) {
+      setSelectedFileName(file.name);
+      onFileSelect(file, expiryDate);
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
+    } else {
+      await uploadFile(file);
+    }
   };
 
   const uploadFile = async (file: File) => {
     setIsUploading(true);
+    setUploadSuccess(false);
     try {
       const formData = new FormData();
       formData.append('document_type', docType);
@@ -47,11 +61,11 @@ export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
       if (expiryDate) formData.append('expiry_date', expiryDate);
       formData.append('file', file);
 
-      await ApiClient.post(`/businesses/${crNumber}/documents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await ApiClient.post(`/businesses/${crNumber}/documents`, formData);
       
+      setUploadSuccess(true);
       onUpdate();
+      setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err) {
       console.error('Upload failed', err);
       alert('Failed to upload document');
@@ -67,9 +81,7 @@ export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
       formData.append('is_available', (!existingDoc?.is_available).toString());
       if (expiryDate) formData.append('expiry_date', expiryDate);
 
-      await ApiClient.post(`/businesses/${crNumber}/documents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await ApiClient.post(`/businesses/${crNumber}/documents`, formData);
       
       onUpdate();
     } catch (err) {
@@ -87,21 +99,25 @@ export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
     return `${baseUrl}/${path}`;
   };
 
+  const isAvailable = existingDoc?.is_available || selectedFileName !== null;
   const isExpired = existingDoc?.expiry_date && new Date(existingDoc.expiry_date) < new Date();
 
   return (
-    <div className="doc-upload-row">
+    <div className={`doc-upload-row ${uploadSuccess ? 'success-flash' : ''}`}>
       <div className="doc-main-info">
-        <div className={`doc-icon-box ${existingDoc?.is_available ? 'success' : 'danger'}`}>
-          <FileText size={20} />
+        <div className={`doc-icon-box ${isAvailable ? 'success' : 'danger'}`}>
+          {uploadSuccess ? <CheckCircle size={20} /> : <FileText size={20} />}
         </div>
         <div className="doc-text">
           <h4>{docType}</h4>
           <div className="doc-meta">
-            <span className={`status-pill ${existingDoc?.is_available ? 'success' : 'danger'}`}>
-              {existingDoc?.is_available ? (isExpired ? 'EXPIRED' : 'AVAILABLE') : 'MISSING'}
+            <span className={`status-pill ${isAvailable ? 'success' : 'danger'}`}>
+              {uploadSuccess ? 'READY' : (isAvailable ? (isExpired ? 'EXPIRED' : 'AVAILABLE') : 'MISSING')}
             </span>
-            {existingDoc?.file_url && (
+            {selectedFileName && (
+              <span className="file-preview-name">{selectedFileName}</span>
+            )}
+            {existingDoc?.file_url && !selectedFileName && (
               <a 
                 href={getFullFileUrl(existingDoc.file_url)} 
                 target="_blank" 
@@ -222,6 +238,28 @@ export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
         }
         .status-pill.success { background: #10b98120; color: #10b981; }
         .status-pill.danger { background: #ef444420; color: #ef4444; }
+        
+        .file-preview-name {
+          font-size: 0.65rem;
+          color: var(--gold-primary);
+          max-width: 150px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          background: rgba(212, 175, 55, 0.1);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .success-flash {
+          animation: successPulse 1.5s ease;
+        }
+
+        @keyframes successPulse {
+          0% { border-color: var(--glass-border); background: rgba(255,255,255,0.02); }
+          50% { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+          100% { border-color: var(--glass-border); background: rgba(255,255,255,0.02); }
+        }
         
         .view-link {
           display: flex;

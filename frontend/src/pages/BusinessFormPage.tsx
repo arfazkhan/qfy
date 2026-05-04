@@ -104,6 +104,16 @@ export const BusinessFormPage: React.FC = () => {
     }
   };
 
+  const [pendingFiles, setPendingFiles] = useState<Map<string, { file: File, expiry: string }>>(new Map());
+
+  const handleFileSelect = (docType: string, file: File, expiry: string) => {
+    setPendingFiles(prev => {
+      const next = new Map(prev);
+      next.set(docType, { file, expiry });
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.cr_number || !formData.name || !formData.cr_expiry_date) {
@@ -116,8 +126,6 @@ export const BusinessFormPage: React.FC = () => {
       return;
     }
     
-
-
     setLoading(true);
     setError(null);
 
@@ -134,11 +142,23 @@ export const BusinessFormPage: React.FC = () => {
         business_nature: formData.business_nature,
         owner_id: formData.owner_id,
         authorized_person_id: formData.authorized_person_id,
-        manager_id: formData.manager_id
+        manager_id: formData.manager_id,
+        initial_note: formData.initial_note
       });
 
-      // No need to create document placeholders here, they are created on demand
-      // or verified by the compliance engine.
+      // 2. Upload Pending Documents
+      const uploadPromises = Array.from(pendingFiles.entries()).map(([docType, { file, expiry }]) => {
+        const docFormData = new FormData();
+        docFormData.append('document_type', docType);
+        docFormData.append('is_available', 'true');
+        if (expiry) docFormData.append('expiry_date', expiry);
+        docFormData.append('file', file);
+        return ApiClient.post(`/businesses/${business.cr_number}/documents`, docFormData);
+      });
+
+      if (uploadPromises.length > 0) {
+        await Promise.all(uploadPromises);
+      }
 
       setSuccess(true);
       setTimeout(() => navigate(`/business/${business.cr_number}`), 2000);
@@ -320,6 +340,7 @@ export const BusinessFormPage: React.FC = () => {
                     crNumber={formData.cr_number}
                     docType={docType}
                     existingDoc={undefined}
+                    onFileSelect={(file, expiry) => handleFileSelect(docType, file, expiry)}
                     onUpdate={() => {}}
                   />
                 );
