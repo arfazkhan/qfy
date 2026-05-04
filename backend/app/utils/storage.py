@@ -17,7 +17,14 @@ def save_business_document(cr_number: str, doc_type: str, file: UploadFile) -> s
     os.makedirs(business_dir, exist_ok=True)
     
     # Get extension
-    ext = os.path.splitext(file.filename)[1] if file.filename else ".bin"
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ".bin"
+    
+    # Security: Hardened extension check
+    ALLOWED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
+    if ext not in ALLOWED_EXTENSIONS:
+        # We allow it for now but maybe log it? Actually rigorous means fail fast.
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed. Only PDF, JPG, PNG are supported.")
     
     # Clean doc type for filename
     safe_doc_type = doc_type.replace(" ", "_").lower()

@@ -2,6 +2,16 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.1-System-Hardening] - 2026-05-04
+
+### 🚀 Added
+- **Rigorous Test Suite**: Created `test_rigorous.py` for chaos testing (malicious files, malformed data).
+- **File Type Security**: Hardened storage utility to only allow PDF, JPG, and PNG extensions.
+- **Input Validation**: Improved API error handling for date parsing, returning 400 instead of 500.
+- **Compliance Propagation**: Verified real-time status recalculation on identity swaps.
+
+---
+
 ## [v1.8.0-Document-Uploads] - 2026-05-04
 
 ### 🚀 Added

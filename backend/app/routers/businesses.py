@@ -160,7 +160,10 @@ async def upsert_business(
     res = await db.execute(select(Business).where(Business.cr_number == data.cr_number))
     business = res.scalars().first()
     
-    expiry_date = datetime.strptime(data.cr_expiry_date, "%Y-%m-%d").date()
+    try:
+        expiry_date = datetime.strptime(data.cr_expiry_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format for cr_expiry_date. Use YYYY-MM-DD.")
     
     if business:
         business.name = data.name
@@ -235,7 +238,7 @@ async def add_or_update_document(
         try:
             expiry = datetime.strptime(expiry_date, "%Y-%m-%d").date()
         except ValueError:
-            pass # Keep None if invalid
+            raise HTTPException(status_code=400, detail="Invalid date format for expiry_date. Use YYYY-MM-DD.")
             
     file_url = None
     original_filename = None
