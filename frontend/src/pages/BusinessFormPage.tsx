@@ -131,7 +131,25 @@ export const BusinessFormPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+      {success && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.4s ease'
+        }}>
+          <div style={{
+            width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)',
+            border: '2px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: '24px', animation: 'scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <CheckCircle2 size={50} color="#10b981" />
+          </div>
+          <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, letterSpacing: '2px', marginBottom: '8px' }}>BUSINESS REGISTERED</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Company compliance record created successfully</p>
+        </div>
+      )}
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
         <div>
@@ -318,6 +336,8 @@ export const BusinessFormPage: React.FC = () => {
       </form>
 
       <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .luxury-card {
           background: var(--glass-bg);
           border: 1px solid var(--glass-border);

@@ -46,22 +46,37 @@ async def scan_id(
     id_status = "AWAITING_VERIFICATION"
     id_status_msg = "Please verify and save the information below."
     
+    # Normalize dates for frontend (HTML5 date input expects YYYY-MM-DD)
+    normalized_expiry = ""
+    normalized_dob = ""
+    
     if expiry_str:
         try:
             exp_date = normalize_date(expiry_str)
             if exp_date:
-                status_enum, msg = calculate_id_status(exp_date)
-                id_status = status_enum.value
-                id_status_msg = msg
+                normalized_expiry = exp_date.isoformat()
+                res = calculate_id_status(exp_date)
+                id_status = res["status"].value
+                id_status_msg = res["message"]
         except Exception as e:
-            logger.warning(f"Status calculation failed: {e}")
+            logger.warning(f"Expiry normalization failed: {e}")
+            normalized_expiry = expiry_str # Fallback
+
+    if dob:
+        try:
+            dob_date = normalize_date(dob)
+            if dob_date:
+                normalized_dob = dob_date.isoformat()
+        except Exception as e:
+            logger.warning(f"DOB normalization failed: {e}")
+            normalized_dob = dob # Fallback
 
     return {
         "user": {
             "qid_number": qid or "",
             "name": name or "",
-            "expiry_date": expiry_str or "",
-            "dob": dob or "—",
+            "expiry_date": normalized_expiry,
+            "dob": normalized_dob,
             "nationality": nationality or "—"
         },
         "status": id_status,

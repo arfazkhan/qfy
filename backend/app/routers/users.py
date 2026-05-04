@@ -141,6 +141,22 @@ async def upsert_customer(
     if user_data['is_manual_edit']:
         logger.info(f"User {qid} was manually edited. Fields: {user_data['modified_fields']}")
 
+    # Duplicate Check Logic
+    force = user_data.pop('force', False)
+    if not force:
+        existing = await get_user_by_qid(db, qid)
+        if existing:
+            from fastapi.responses import JSONResponse
+            from fastapi.encoders import jsonable_encoder
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "status": "duplicate",
+                    "existing": jsonable_encoder(UserRecord.model_validate(existing)),
+                    "new": jsonable_encoder(user_data)
+                }
+            )
+
     user, _ = await upsert_user(db, user_data)
     return UserRecord.model_validate(user)
 

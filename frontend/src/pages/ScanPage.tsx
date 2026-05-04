@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Upload, 
+import {
+  Upload,
   Scan,
-  ChevronLeft, 
-  ShieldCheck, 
+  ChevronLeft,
+  ShieldCheck,
   CheckCircle2,
   Image as ImageIcon,
   Eye,
   RotateCcw,
   HelpCircle,
+  AlertCircle,
   X,
   Plus,
   Edit2,
@@ -33,14 +34,14 @@ export const ScanPage: React.FC = () => {
   const navigate = useNavigate();
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [frontImage, setFrontImage] = useState<ImageState>({
     file: null, preview: null, base64: null, name: '', size: '', status: 'idle'
   });
   const [backImage, setBackImage] = useState<ImageState>({
     file: null, preview: null, base64: null, name: '', size: '', status: 'idle'
   });
-  
+
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,16 +52,93 @@ export const ScanPage: React.FC = () => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [mobileNumber, setMobileNumber] = useState('974');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [duplicateData, setDuplicateData] = useState<any>(null);
 
   useEffect(() => {
     if (scanResult?.user) {
-      setEditedData({ ...scanResult.user });
+      setEditedData((prev: any) => ({ ...prev, ...scanResult.user }));
+    } else if (scanResult?.extracted_data) {
+      setEditedData((prev: any) => ({ ...prev, ...scanResult.extracted_data }));
     }
   }, [scanResult]);
 
+  const getTargetFilename = (type: 'FRONT' | 'BACK') => {
+    if (!editedData) return type === 'FRONT' ? 'PENDING_SCAN_FRONT.jpg' : 'PENDING_SCAN_BACK.jpg';
+
+    const name = editedData.name || 'UNKNOWN';
+    const qid = editedData.qid_number || 'UNKNOWN';
+
+    // Sanitize name for filename
+    const sanitizedName = name.toUpperCase()
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^A-Z0-9_]/g, '');
+
+    return `${sanitizedName}_${qid}_${type}.jpg`;
+  };
+
+  const calculateIDStatus = (expiryDate: string) => {
+    if (!expiryDate) return { status: 'AWAITING_VERIFICATION', label: 'AWAITING VERIFICATION' };
+
+    try {
+      let dateObj: Date;
+      // Handle DD/MM/YYYY vs YYYY-MM-DD
+      if (expiryDate.includes('/')) {
+        const parts = expiryDate.split('/');
+        if (parts.length === 3) {
+          // If first part is > 12, it must be day
+          if (parseInt(parts[0]) > 12) {
+            dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          } else {
+            // Ambiguous, but let's assume DD/MM/YYYY for Qatar context
+            dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+        } else {
+          dateObj = new Date(expiryDate);
+        }
+      } else {
+        dateObj = new Date(expiryDate);
+      }
+
+      if (isNaN(dateObj.getTime())) {
+        return { status: 'AWAITING_VERIFICATION', label: 'AWAITING VERIFICATION' };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dateObj.setHours(0, 0, 0, 0);
+
+      const diffTime = dateObj.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays > 30) return { status: 'ACTIVE', label: 'ACTIVE' };
+      if (diffDays >= 0) return { status: 'EXPIRING_SOON', label: 'EXPIRING SOON' };
+      if (diffDays >= -90) return { status: 'GRACE_PERIOD', label: 'GRACE PERIOD' };
+      return { status: 'INVALID', label: 'INVALID / EXPIRED' };
+    } catch (e) {
+      return { status: 'AWAITING_VERIFICATION', label: 'AWAITING VERIFICATION' };
+    }
+  };
+
+  useEffect(() => {
+    if (frontImage.preview && !editedData) {
+      setEditedData({
+        name: '',
+        qid_number: '',
+        dob: '',
+        nationality: '',
+        expiry_date: ''
+      });
+    }
+  }, [frontImage.preview, editedData]);
+
   const handleValueChange = (field: string, value: string) => {
     setEditedData((prev: any) => ({ ...prev, [field]: value }));
-    if (scanResult?.user[field] !== value) {
+    if (scanResult?.user && scanResult.user[field] !== value) {
+      setModifiedFields(prev => new Set(prev).add(field));
+    } else if (!scanResult) {
+      // If no scan result, everything is a manual edit
       setModifiedFields(prev => new Set(prev).add(field));
     }
   };
@@ -85,10 +163,10 @@ export const ScanPage: React.FC = () => {
   const handleFrontSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const base64 = await fileToBase64(file);
     const preview = URL.createObjectURL(file);
-    
+
     setFrontImage({
       file,
       preview,
@@ -104,10 +182,10 @@ export const ScanPage: React.FC = () => {
   const handleBackSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const base64 = await fileToBase64(file);
     const preview = URL.createObjectURL(file);
-    
+
     setBackImage({
       file,
       preview,
@@ -126,15 +204,15 @@ export const ScanPage: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await ApiClient.post<any>('/scan', formData);
       setScanResult(response);
-      
+
       // Update preview to show the processed/warped image from backend
       if (response.processed_image) {
         setPreviewUrl(`data:image/jpeg;base64,${response.processed_image}`);
       }
-      
+
       setFrontImage(prev => ({ ...prev, status: 'processed' }));
     } catch (err: any) {
       setError(err.message || 'Scan failed. Please try again.');
@@ -159,45 +237,190 @@ export const ScanPage: React.FC = () => {
         back_image: backImage.base64,
         manual_edit: modifiedFields.size > 0,
         modified_fields: Array.from(modifiedFields),
-        mobile_number: `+${mobileNumber}`
+        mobile_number: `+${mobileNumber}`,
+        force: false
       };
-      
-      const userResponse = await ApiClient.post<any>('/users/upsert', userData);
-      await ApiClient.post(`/users/${userData.qid_number}/visit`, {
-        manual_rectification: modifiedFields.size > 0
-      });
-      
-      setIsMobileModalOpen(false);
-      
-      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
-      const role = new URLSearchParams(window.location.search).get('role');
-      
-      if (returnUrl) {
-        // Redirect back with the user ID and role context
-        const connector = returnUrl.includes('?') ? '&' : '?';
-        navigate(`${returnUrl}${connector}linked_id=${userResponse.id}&role=${role || 'owner'}`);
-      } else {
-        navigate('/dashboard');
+
+      try {
+        const userResponse = await ApiClient.post<any>('/users/upsert', userData);
+        await ApiClient.post(`/users/${userData.qid_number}/visit`, {
+          manual_rectification: modifiedFields.size > 0
+        });
+
+        setIsMobileModalOpen(false);
+        setIsSuccess(true);
+
+        // Brief pause for the success message to be seen
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+        const role = new URLSearchParams(window.location.search).get('role');
+
+        if (returnUrl) {
+          // Redirect back with the user ID and role context
+          const connector = returnUrl.includes('?') ? '&' : '?';
+          navigate(`${returnUrl}${connector}linked_id=${userResponse.id}&role=${role || 'owner'}`);
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err: any) {
+        if (err.status === 409) {
+          setDuplicateData(err.data);
+          setIsMobileModalOpen(false);
+        } else {
+          throw err;
+        }
       }
     } catch (err: any) {
       setError('Failed to save record: ' + err.message);
     }
   };
 
+  const handleMerge = async () => {
+    if (!duplicateData) return;
+    try {
+      const userData = {
+        ...duplicateData.new,
+        force: true
+      };
+      const userResponse = await ApiClient.post<any>('/users/upsert', userData);
+      await ApiClient.post(`/users/${userData.qid_number}/visit`, {
+        manual_rectification: modifiedFields.size > 0
+      });
+
+      setDuplicateData(null);
+      setIsSuccess(true);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
+      const role = new URLSearchParams(window.location.search).get('role');
+      if (returnUrl) {
+        const connector = returnUrl.includes('?') ? '&' : '?';
+        navigate(`${returnUrl}${connector}linked_id=${userResponse.id}&role=${role || 'owner'}`);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError('Failed to merge record: ' + err.message);
+    }
+  };
+
+  const handleDiscard = () => {
+    setDuplicateData(null);
+    navigate('/dashboard');
+  };
+
   const handleInitialSaveClick = () => {
-    if (!scanResult) {
-      setError('Please upload and scan the front side first.');
+    if (!frontImage.preview) {
+      setError('Please upload the front side image first.');
       return;
     }
     // Removing the back image requirement as discussed or if it's optional
     if (!editedData) return;
-    
+
     setIsMobileModalOpen(true);
   };
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+      {isSuccess && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.4s ease'
+        }}>
+          <div style={{
+            width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)',
+            border: '2px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: '24px', animation: 'scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <CheckCircle2 size={50} color="#10b981" />
+          </div>
+          <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, letterSpacing: '2px', marginBottom: '8px' }}>RECORD SAVED</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Compliance visit logged successfully</p>
+        </div>
+      )}
+
+      {duplicateData && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px'
+        }}>
+          <div className="luxury-card" style={{ maxWidth: '900px', width: '100%', padding: '40px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+              <div style={{ padding: '12px', background: 'rgba(234, 179, 8, 0.1)', borderRadius: '12px', border: '1px solid var(--gold-primary)' }}>
+                <AlertCircle size={32} color="var(--gold-primary)" />
+              </div>
+              <div>
+                <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 900, margin: 0 }}>DUPLICATE RECORD FOUND</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '4px 0 0 0' }}>A record with QID <span style={{ color: 'var(--gold-primary)', fontWeight: 800 }}>{duplicateData.existing.qid_number}</span> already exists in the system.</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '40px' }}>
+              {/* Existing Record */}
+              <div style={{ padding: '24px', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                <h3 style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '20px' }}>EXISTING SYSTEM RECORD</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Name</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{duplicateData.existing.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Expiry</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{duplicateData.existing.expiry_date}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Last Seen</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gold-primary)' }}>{new Date(duplicateData.existing.last_seen_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* New Scan */}
+              <div style={{ padding: '24px', background: 'rgba(234, 179, 8, 0.03)', borderRadius: '20px', border: '1px solid var(--gold-muted)' }}>
+                <h3 style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '20px' }}>NEW SCAN RESULTS</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Name</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{duplicateData.new.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Expiry</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{duplicateData.new.expiry_date}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Action</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--gold-primary)' }}>REPLACE & LOG</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button
+                className="btn-luxury"
+                style={{ flex: 1, height: '56px', background: 'rgba(255,255,255,0.05)' }}
+                onClick={handleDiscard}
+              >
+                DISCARD SCAN
+              </button>
+              <button
+                className="btn-gold"
+                style={{ flex: 2, height: '56px' }}
+                onClick={handleMerge}
+              >
+                MERGE & UPDATE RECORD
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .phone-input-luxury .form-control {
           font-family: inherit !important;
           border-color: var(--glass-border) !important;
@@ -287,18 +510,18 @@ export const ScanPage: React.FC = () => {
       {/* Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
         <div>
-          <button 
-            onClick={() => navigate(-1)} 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              background: 'transparent', 
-              border: 'none', 
-              color: 'var(--text-muted)', 
-              fontSize: '0.7rem', 
-              fontWeight: 800, 
-              letterSpacing: '1px', 
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '0.7rem',
+              fontWeight: 800,
+              letterSpacing: '1px',
               cursor: 'pointer',
               marginBottom: '12px',
               padding: 0
@@ -339,7 +562,7 @@ export const ScanPage: React.FC = () => {
               )}
             </div>
 
-            <div 
+            <div
               className={`scan-preview-container ${frontImage.preview ? 'has-image' : ''}`}
               onClick={() => !frontImage.preview && frontInputRef.current?.click()}
             >
@@ -348,16 +571,16 @@ export const ScanPage: React.FC = () => {
               ) : (
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '24px' }}>
-                    <button 
-                      className="btn-gold" 
+                    <button
+                      className="btn-gold"
                       style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px' }}
-                      onClick={() => {/* Trigger USB Scanner Logic */}}
+                      onClick={() => {/* Trigger USB Scanner Logic */ }}
                     >
                       <Scan size={24} />
                       <span style={{ fontSize: '0.7rem' }}>SCAN FROM USB</span>
                     </button>
-                    <button 
-                      className="btn-luxury" 
+                    <button
+                      className="btn-luxury"
                       style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px' }}
                       onClick={() => frontInputRef.current?.click()}
                     >
@@ -382,7 +605,9 @@ export const ScanPage: React.FC = () => {
             {frontImage.preview && (
               <>
                 <div className="scan-file-meta">
-                  <span>{frontImage.name}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>{getTargetFilename('FRONT')}</span>
+                  </div>
                   <span>{frontImage.size}</span>
                 </div>
                 <div className="scan-card-actions">
@@ -406,8 +631,7 @@ export const ScanPage: React.FC = () => {
                   <ImageIcon size={20} color="var(--text-muted)" />
                 </div>
                 <div>
-                  <h3>BACK SIDE <span style={{ color: 'var(--text-muted)' }}>(Optional)</span></h3>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Stored for reference only (no data extraction)</p>
+                  <h3>BACK SIDE</h3>
                 </div>
               </div>
               {backImage.status === 'uploaded' && (
@@ -418,7 +642,7 @@ export const ScanPage: React.FC = () => {
               )}
             </div>
 
-            <div 
+            <div
               className={`scan-preview-container ${backImage.preview ? 'has-image' : ''}`}
               onClick={() => !backImage.preview && backInputRef.current?.click()}
             >
@@ -427,16 +651,16 @@ export const ScanPage: React.FC = () => {
               ) : (
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '24px' }}>
-                    <button 
-                      className="btn-luxury" 
+                    <button
+                      className="btn-luxury"
                       style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px', borderColor: 'var(--glass-border)' }}
-                      onClick={() => {/* Trigger USB Scanner Logic */}}
+                      onClick={() => {/* Trigger USB Scanner Logic */ }}
                     >
                       <Scan size={24} />
                       <span style={{ fontSize: '0.7rem' }}>SCAN FROM USB</span>
                     </button>
-                    <button 
-                      className="btn-luxury" 
+                    <button
+                      className="btn-luxury"
                       style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px', borderColor: 'var(--glass-border)' }}
                       onClick={() => backInputRef.current?.click()}
                     >
@@ -452,7 +676,9 @@ export const ScanPage: React.FC = () => {
             {backImage.preview && (
               <>
                 <div className="scan-file-meta">
-                  <span>{backImage.name}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>{getTargetFilename('BACK')}</span>
+                  </div>
                   <span>{backImage.size}</span>
                 </div>
                 <div className="scan-card-actions">
@@ -475,64 +701,77 @@ export const ScanPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px' }}>EXTRACTED INFORMATION</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {scanResult && (
-                  <span className={`status-badge-${scanResult.status.toLowerCase()}`}>
-                    {scanResult.status.replace('_', ' ')}
-                  </span>
+                {editedData && (
+                  (() => {
+                    const statusInfo = calculateIDStatus(editedData.expiry_date);
+                    return (
+                      <span className={`status-badge-${statusInfo.status.toLowerCase()}`}>
+                        {statusInfo.label}
+                      </span>
+                    );
+                  })()
                 )}
                 {scanResult && <span className="badge-active-modern">Auto Extracted</span>}
               </div>
             </div>
 
-              <div className="extraction-table">
-                {[
-                  { label: 'Full Name', field: 'name', value: editedData?.name },
-                  { label: 'QID Number', field: 'qid_number', value: editedData?.qid_number },
-                  { label: 'Date of Birth', field: 'dob', value: editedData?.dob },
-                  { label: 'Nationality', field: 'nationality', value: editedData?.nationality },
-                  { label: 'Date of Expiry', field: 'expiry_date', value: editedData?.expiry_date },
-                ].map((row, i) => (
-                  <div className="extraction-row" key={i}>
-                    <span className="extraction-label">{row.label}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
-                      {editingField === row.field ? (
-                        <input 
-                          autoFocus
-                          className="input-luxury"
-                          style={{ padding: '4px 8px', fontSize: '0.8rem', height: '28px', width: '160px', textAlign: 'right' }}
-                          value={row.value || ''}
-                          onChange={(e) => handleValueChange(row.field, e.target.value)}
-                          onBlur={() => setEditingField(null)}
-                          onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
+            <div className="extraction-table">
+              {[
+                { label: 'Full Name', field: 'name', value: editedData?.name },
+                { label: 'QID Number', field: 'qid_number', value: editedData?.qid_number },
+                { label: 'Date of Birth', field: 'dob', value: editedData?.dob },
+                { label: 'Nationality', field: 'nationality', value: editedData?.nationality },
+                { label: 'Date of Expiry', field: 'expiry_date', value: editedData?.expiry_date },
+              ].map((row, i) => (
+                <div className="extraction-row" key={i}>
+                  <span className="extraction-label">{row.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+                    {editingField === row.field ? (
+                      <input
+                        autoFocus
+                        type={(row.field === 'dob' || row.field === 'expiry_date') ? 'date' : 'text'}
+                        className="input-luxury"
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '0.8rem',
+                          height: '28px',
+                          width: (row.field === 'dob' || row.field === 'expiry_date') ? '180px' : '160px',
+                          textAlign: 'right',
+                          colorScheme: 'dark' // Ensure date picker looks good in dark mode
+                        }}
+                        value={row.value || ''}
+                        onChange={(e) => handleValueChange(row.field, e.target.value)}
+                        onBlur={() => setEditingField(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
+                      />
+                    ) : (
+                      <span
+                        className="extraction-value"
+                        style={{
+                          color: row.value ? (modifiedFields.has(row.field) ? 'var(--gold-primary)' : '#fff') : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => frontImage.preview && setEditingField(row.field)}
+                      >
+                        {row.value || (frontImage.preview && isScanning ? <div className="skeleton-line" style={{ width: '100px', marginLeft: 'auto' }} /> : (row.value || '—'))}
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {frontImage.preview && !editingField && (
+                        <Edit2
+                          size={12}
+                          style={{ cursor: 'pointer', opacity: 0.3 }}
+                          onClick={() => setEditingField(row.field)}
                         />
-                      ) : (
-                        <span 
-                          className="extraction-value" 
-                          style={{ 
-                            color: row.value ? (modifiedFields.has(row.field) ? 'var(--gold-primary)' : '#fff') : 'var(--text-muted)',
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => scanResult && setEditingField(row.field)}
-                        >
-                          {row.value || (frontImage.preview ? <div className="skeleton-line" style={{ width: '100px', marginLeft: 'auto' }} /> : '—')}
-                        </span>
                       )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {scanResult && !editingField && (
-                          <Edit2 
-                            size={12} 
-                            style={{ cursor: 'pointer', opacity: 0.3 }} 
-                            onClick={() => setEditingField(row.field)}
-                          />
-                        )}
-                        <span className="extraction-check" style={{ opacity: row.value ? 1 : 0.05 }}>
-                          <CheckCircle2 size={14} />
-                        </span>
-                      </div>
+                      <span className="extraction-check" style={{ opacity: row.value ? 1 : 0.05 }}>
+                        <CheckCircle2 size={14} />
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
             <div style={{ marginTop: '32px', padding: '20px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--gold-primary)', marginBottom: '16px' }}>EXTRACTION SUMMARY</h4>
@@ -580,21 +819,21 @@ export const ScanPage: React.FC = () => {
                 </div>
               )}
               <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--gold-primary)', marginBottom: '16px' }}>NEXT ACTION</h4>
-              <button 
-                className="btn-gold" 
-                style={{ 
-                  width: '100%', 
-                  height: '56px', 
+              <button
+                className="btn-gold"
+                style={{
+                  width: '100%',
+                  height: '56px',
                   fontSize: '1rem',
-                  opacity: !scanResult ? 0.6 : 1,
-                  cursor: !scanResult ? 'not-allowed' : 'pointer',
-                  filter: !scanResult ? 'grayscale(0.5)' : 'none'
-                }} 
+                  opacity: !frontImage.preview ? 0.6 : 1,
+                  cursor: !frontImage.preview ? 'not-allowed' : 'pointer',
+                  filter: !frontImage.preview ? 'grayscale(0.5)' : 'none'
+                }}
                 onClick={handleInitialSaveClick}
-                disabled={!scanResult}
+                disabled={!frontImage.preview}
               >
                 <CheckCircle2 size={18} style={{ marginRight: '10px' }} />
-                {!scanResult ? 'Process ID to Save' : 'Save & Log Visit'}
+                {!frontImage.preview ? 'Process ID to Save' : 'Save & Log Visit'}
               </button>
             </div>
           </div>
@@ -700,8 +939,8 @@ export const ScanPage: React.FC = () => {
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Enter contact number to complete log</p>
                 </div>
               </div>
-              <button 
-                className="btn-icon" 
+              <button
+                className="btn-icon"
                 onClick={() => setIsMobileModalOpen(false)}
                 style={{ background: 'rgba(255,255,255,0.03)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -773,31 +1012,31 @@ export const ScanPage: React.FC = () => {
                             let currentDigits = (mobileNumber.startsWith('974') ? mobileNumber.slice(3) : '').split('');
                             currentDigits[i] = val;
                             setMobileNumber('974' + currentDigits.join('').slice(0, 8));
-                            if (i < 7) document.getElementById(`digit-${i+1}`)?.focus();
+                            if (i < 7) document.getElementById(`digit-${i + 1}`)?.focus();
                           }
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Backspace') {
                             let currentDigits = (mobileNumber.startsWith('974') ? mobileNumber.slice(3) : '').split('');
                             if (!currentDigits[i] && i > 0) {
-                              currentDigits[i-1] = '';
+                              currentDigits[i - 1] = '';
                               setMobileNumber('974' + currentDigits.join(''));
-                              document.getElementById(`digit-${i-1}`)?.focus();
+                              document.getElementById(`digit-${i - 1}`)?.focus();
                             } else {
                               currentDigits[i] = '';
                               setMobileNumber('974' + currentDigits.join(''));
                             }
                           }
                         }}
-                        style={{ 
-                          width: '100%', 
-                          height: '64px', 
-                          fontSize: '1.5rem', 
-                          fontWeight: 900, 
-                          textAlign: 'center', 
-                          background: 'rgba(255,255,255,0.03)', 
-                          border: '1px solid var(--glass-border)', 
-                          borderRadius: '12px', 
+                        style={{
+                          width: '100%',
+                          height: '64px',
+                          fontSize: '1.5rem',
+                          fontWeight: 900,
+                          textAlign: 'center',
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: '12px',
                           color: 'var(--gold-primary)',
                           outline: 'none'
                         }}
@@ -809,15 +1048,15 @@ export const ScanPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '16px' }}>
-              <button 
-                className="btn-luxury" 
+              <button
+                className="btn-luxury"
                 style={{ flex: 1, height: '64px' }}
                 onClick={() => setIsMobileModalOpen(false)}
               >
                 Cancel
               </button>
-              <button 
-                className="btn-gold" 
+              <button
+                className="btn-gold"
                 style={{ flex: 2, height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
                 onClick={handleSaveAndLog}
                 disabled={mobileNumber.length < (mobileNumber.startsWith('974') ? 8 : 5)}

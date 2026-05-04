@@ -367,7 +367,7 @@ export const DashboardPage: React.FC = () => {
                 textTransform: 'uppercase',
                 opacity: 0.8
               }}>
-                {searchType === 'individual' ? 'Enter Qatar ID Number' : 'Enter Commercial Registration Number'}
+                {searchType === 'individual' ? 'Enter Q-ID Number' : 'Enter CR Number'}
               </label>
 
               {/* Digit Entry Grid */}
@@ -482,7 +482,7 @@ export const DashboardPage: React.FC = () => {
                   }}
                   onClick={handleSearch}
                 >
-                  SEARCH NOW
+                  SEARCH
                 </button>
               </div>
             </div>
@@ -545,7 +545,7 @@ export const DashboardPage: React.FC = () => {
                         <div className="not-found-icon">🏢</div>
                         <h3>Business Not Found</h3>
                         <p>CR: <strong>{lastResult.cr_number}</strong> is not in the system.</p>
-                        <button 
+                        <button
                           className="create-btn"
                           onClick={() => navigate(`/business/add?cr=${lastResult.cr_number}`)}
                         >
@@ -595,7 +595,7 @@ export const DashboardPage: React.FC = () => {
                       </div>
 
                       {lastResult.latest_note && (
-                        <div className="latest-note-snippet" style={{ 
+                        <div className="latest-note-snippet" style={{
                           background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '20px',
                           borderLeft: '3px solid var(--gold-primary)'
                         }}>
@@ -604,8 +604,8 @@ export const DashboardPage: React.FC = () => {
                         </div>
                       )}
 
-                      <button 
-                        className="btn-luxury" 
+                      <button
+                        className="btn-luxury"
                         onClick={() => navigate(`/business/${lastResult.cr_number}`)}
                         style={{ width: '100%', height: '48px', borderRadius: '12px' }}
                       >

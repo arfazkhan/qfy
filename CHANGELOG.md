@@ -25,6 +25,30 @@ All notable changes to the Q-FY project will be documented in this file.
 - **Backend UUID & Schema Sync**: Fixed a `StatementError` by correctly casting string identifiers to UUID objects and transitioned to JSON-based Pydantic schemas.
 - **Search & Navigation Hub**: Added "Register Business" to the sidebar and corrected the `IdentityPicker` to use standard user lookup endpoints with specialized 404 handling.
 - **Stateful Scan Return**: Implemented a `returnUrl` system in the `ScanPage` to automatically redirect and re-link new identities back to the registration form, eliminating workflow disconnection.
+## [v1.5.0-UX-Stability] - 2026-05-04
+
+### 🚀 Added
+- **Intelligent Conflict Resolution**: Implemented a "Duplicate Found" workflow that intercepts duplicate QID entries and prompts users to compare, merge, or discard records with a force-override mechanism.
+- **Dynamic Filename Preview**: Added a real-time "Target Archive Name" preview in the scan UI (e.g., `NAME_QID_FRONT.jpg`) to ensure naming consistency before archival.
+- **Visual Success Feedback**: Integrated high-fidelity glassmorphism success overlays and automated redirection logic for both identity and business registrations.
+- **Manual Data Fallback**: Decoupled registration from OCR dependency, allowing for complete manual data entry and storage even when automatic extraction fails.
+
+### 🛠️ Changed
+- **Precision Date Pickers**: Replaced legacy text inputs with native HTML5 date pickers for DOB and Expiry fields, supported by backend ISO normalization.
+
+### 🐞 Fixed
+- **Real-time Status Engine**: Fixed backend status return unpacking and implemented a robust frontend calculator that supports multiple regional date formats (DD/MM/YYYY) for accurate "Grace Period" detection.
+- **Extracted Data Sync**: Synchronized the identity editing state to automatically ingest new OCR extraction results, preventing data lag during the scanning process.
+
+---
+
+## [v1.4.1-UX-Stabilization] - 2026-05-04
+
+### 🚀 Added
+- **Native Date Selection**: Implemented native date pickers for `Date of Birth` and `Expiry Date` in the identity scanning workflow to eliminate manual formatting errors.
+- **Backend Date Normalization**: Added server-side utility in `scan.py` to normalize OCR-extracted dates into standard ISO format (`YYYY-MM-DD`).
+- **Success Feedback System**: Integrated high-fidelity success overlays for both identity and business registrations with automated redirection.
+- **Manual Fallback Resilience**: Enabled manual entry paths that bypass OCR dependencies, ensuring users can always complete registration.
 
 ---
 
