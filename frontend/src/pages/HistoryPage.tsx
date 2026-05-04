@@ -8,15 +8,19 @@ import {
   Search as SearchIcon,
   ExternalLink,
   Calendar,
-  RefreshCcw
+  RefreshCcw,
+  Building2,
+  Globe
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiClient } from '../api/client';
 
 export const HistoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchType, setSearchType] = useState<'individual' | 'business'>('individual');
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
+  const [businessResults, setBusinessResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -34,7 +38,7 @@ export const HistoryPage: React.FC = () => {
     } else {
       performSearch();
     }
-  }, [qidParam]);
+  }, [qidParam, searchType]); // Re-fetch on tab change
 
   const performSearch = async (query?: string, start?: string, end?: string) => {
     setLoading(true);
@@ -44,10 +48,16 @@ export const HistoryPage: React.FC = () => {
       if (start || startDate) params.start_date = start || startDate;
       if (end || endDate) params.end_date = end || endDate;
 
-      const data = await ApiClient.get<any[]>('/lookup/users', params);
-      setResults(data);
+      if (searchType === 'individual') {
+        const data = await ApiClient.get<any[]>('/lookup/users', params);
+        setResults(data);
+      } else {
+        const data = await ApiClient.get<any[]>('/lookup/businesses', params);
+        setBusinessResults(data);
+      }
     } catch (err) {
-      setResults([]);
+      if (searchType === 'individual') setResults([]);
+      else setBusinessResults([]);
       setToast("Search failed or no records found");
     } finally {
       setLoading(false);
@@ -58,16 +68,67 @@ export const HistoryPage: React.FC = () => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery) return;
-    performSearch(searchQuery);
+    performSearch();
   };
 
 
   return (
     <div className="dashboard-grid">
-      <div className="section-header">
-        <h2>Customer Archives</h2>
-        <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{results.length} ENTRIES FOUND</div>
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2>Archives & Interactions</h2>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
+            {searchType === 'individual' ? results.length : businessResults.length} ENTRIES FOUND
+          </div>
+        </div>
+
+        <div className="search-tabs-container" style={{
+          display: 'flex',
+          gap: '2px',
+          background: 'rgba(255,255,255,0.03)',
+          padding: '4px',
+          borderRadius: '12px',
+          border: '1px solid var(--glass-border)',
+        }}>
+          <button
+            className={`tab-btn ${searchType === 'individual' ? 'active' : ''}`}
+            onClick={() => setSearchType('individual')}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '8px',
+              fontSize: '0.7rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: searchType === 'individual' ? 'var(--gold-primary)' : 'transparent',
+              color: searchType === 'individual' ? '#000' : 'var(--text-muted)',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            INDIVIDUAL
+          </button>
+          <button
+            className={`tab-btn ${searchType === 'business' ? 'active' : ''}`}
+            onClick={() => setSearchType('business')}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '8px',
+              fontSize: '0.7rem',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: searchType === 'business' ? 'var(--gold-primary)' : 'transparent',
+              color: searchType === 'business' ? '#000' : 'var(--text-muted)',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            BUSINESS
+          </button>
+        </div>
       </div>
 
       <section className="search-section">
@@ -77,7 +138,7 @@ export const HistoryPage: React.FC = () => {
               <SearchIcon size={18} color="var(--text-muted)" />
               <input
                 type="text"
-                placeholder="Search QID or Name..."
+                placeholder={searchType === 'individual' ? "Search QID or Name..." : "Search CR or Name..."}
                 value={searchQuery}
                 style={{ background: 'none', border: 'none', color: '#fff', width: '100%', outline: 'none', padding: '8px' }}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -131,76 +192,125 @@ export const HistoryPage: React.FC = () => {
       </section>
 
       <div className="results-list">
-        <AnimatePresence>
-          {results.map((user, index) => (
-            <motion.div
-              key={user.qid_number}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="luxury-card customer-row"
-            >
-              <div className="customer-main">
-                <div className="customer-avatar-box" style={{ overflow: 'hidden' }}>
-                  {(() => {
-                    const initials = user.name ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
-                    return (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)',
-                        color: 'var(--gold-primary)',
-                        fontSize: '1rem',
-                        fontWeight: 900,
-                        letterSpacing: '1px'
-                      }}>
-                        {initials}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div className="customer-info">
-                  <span className="customer-name">{user.name}</span>
-                  <span className="customer-qid">{user.qid_number}</span>
-                </div>
-              </div>
-
-              <div className="customer-status">
-                <StatusBadge expiryDate={user.expiry_date} />
-              </div>
-
-              <div className="customer-meta">
-                <div className="meta-item">
-                  <RefreshCcw size={12} color="var(--gold-secondary)" />
-                  <span>{user.visit_count} VISITS</span>
-                </div>
-                <div className="meta-item">
-                  <Clock size={12} color="var(--gold-secondary)" />
-                  <span>LAST: {new Date(user.last_seen_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              <div className="customer-actions">
-                <button
-                  onClick={() => navigate(`/user/${user.qid_number}`)}
-                  className="btn-luxury small"
-                  style={{ width: '120px', justifyContent: 'center', gap: '8px' }}
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '100px' }}>
+            <RefreshCcw size={48} className="animate-spin" color="var(--gold-muted)" />
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            {searchType === 'individual' ? (
+              results.map((user, index) => (
+                <motion.div
+                  key={user.qid_number}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="luxury-card customer-row"
                 >
-                  <ExternalLink size={14} />
-                  DETAILS
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                  <div className="customer-main">
+                    <div className="customer-avatar-box">
+                      {(() => {
+                        const initials = user.name ? user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+                        return <div className="luxury-initials">{initials}</div>;
+                      })()}
+                    </div>
+                    <div className="customer-info">
+                      <span className="customer-name">{user.name}</span>
+                      <span className="customer-qid">{user.qid_number}</span>
+                    </div>
+                  </div>
 
-        {!loading && results.length === 0 && (
+                  <div className="customer-status">
+                    <StatusBadge expiryDate={user.expiry_date} />
+                  </div>
+
+                  <div className="customer-meta">
+                    <div className="meta-item">
+                      <RefreshCcw size={12} color="var(--gold-secondary)" />
+                      <span>{user.visit_count} VISITS</span>
+                    </div>
+                    <div className="meta-item">
+                      <Clock size={12} color="var(--gold-secondary)" />
+                      <span>LAST: {new Date(user.last_seen_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="customer-actions">
+                    <button
+                      onClick={() => navigate(`/user/${user.qid_number}`)}
+                      className="btn-luxury small"
+                      style={{ width: '120px', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <ExternalLink size={14} />
+                      DETAILS
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              businessResults.map((biz, index) => (
+                <motion.div
+                  key={biz.cr_number}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="luxury-card customer-row"
+                  style={{ gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr' }}
+                >
+                  <div className="customer-main">
+                    <div className="customer-avatar-box" style={{ background: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6' }}>
+                      <Building2 size={20} />
+                    </div>
+                    <div className="customer-info">
+                      <span className="customer-name">{biz.name}</span>
+                      <span className="customer-qid">CR: {biz.cr_number}</span>
+                    </div>
+                  </div>
+
+                  <div className="customer-status">
+                    <div className={`status-badge`} style={{ 
+                      background: biz.status === 'COMPLIANT' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      color: biz.status === 'COMPLIANT' ? 'var(--success)' : 'var(--danger)',
+                      border: `1px solid ${biz.status === 'COMPLIANT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                    }}>
+                      <Shield size={12} />
+                      <span>{biz.status.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+
+                  <div className="customer-meta">
+                    <div className="meta-item">
+                      <Globe size={12} color="var(--gold-secondary)" />
+                      <span>{biz.nationality}</span>
+                    </div>
+                    <div className="meta-item">
+                      <Clock size={12} color="var(--gold-secondary)" />
+                      <span>UPDATED: {new Date(biz.last_updated).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="customer-actions">
+                    <button
+                      onClick={() => navigate(`/business/${biz.cr_number}`)}
+                      className="btn-luxury small"
+                      style={{ width: '120px', justifyContent: 'center', gap: '8px' }}
+                    >
+                      <ExternalLink size={14} />
+                      VIEW
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        )}
+
+        {!loading && (searchType === 'individual' ? results.length === 0 : businessResults.length === 0) && (
           <div className="empty-results luxury-card">
             <Shield size={48} color="var(--gold-muted)" strokeWidth={0.5} />
-            <p>No matches found in the system archives.</p>
+            <p>No matches found in the {searchType} archives.</p>
           </div>
         )}
       </div>
@@ -208,15 +318,17 @@ export const HistoryPage: React.FC = () => {
       {toast && <div className="toast">{toast}</div>}
 
       <style>{`
-        .search-input-group { 
-          display: flex; 
-          align-items: center; 
-          gap: 12px; 
-          background: rgba(255,255,255,0.03); 
-          padding: 8px 16px; 
-          border-radius: 12px; 
-          border: 1px solid var(--glass-border);
-          transition: 0.3s;
+        .luxury-initials {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justifyContent: center;
+          background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+          color: var(--gold-primary);
+          font-size: 1rem;
+          font-weight: 900;
+          letter-spacing: 1px;
         }
         .search-input-group:focus-within {
           border-color: var(--gold-primary);

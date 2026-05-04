@@ -111,7 +111,7 @@ export const UserDetailPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <button className="btn-gold" style={{ padding: '12px 32px', fontSize: '0.85rem', color: '#000', fontWeight: 800 }} onClick={() => navigate('/scan')}>
+        <button className="btn-gold" style={{ padding: '12px 32px', fontSize: '0.85rem', color: '#000', fontWeight: 800 }} onClick={() => navigate(`/scan?qid=${user.qid_number}&re_scan=true`)}>
           <RefreshCcw size={18} /> RE-SCAN ID NOW
         </button>
       </div>
@@ -261,7 +261,16 @@ export const UserDetailPage: React.FC = () => {
         {/* ID Previews */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           <div className="luxury-card" style={{ padding: '32px', flex: 1 }}>
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 900, letterSpacing: '1px', color: 'var(--gold-primary)', marginBottom: '24px' }}>FRONT SIDE SCAN</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '0.8rem', fontWeight: 900, letterSpacing: '1px', color: 'var(--gold-primary)' }}>FRONT SIDE SCAN</h3>
+              <button 
+                className="btn-luxury" 
+                style={{ padding: '6px 12px', fontSize: '0.65rem' }}
+                onClick={() => navigate(`/scan?qid=${user.qid_number}&re_scan=true`)}
+              >
+                <RefreshCcw size={12} /> RE-SCAN
+              </button>
+            </div>
             <div style={{ width: '100%', aspectRatio: '1.6', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--glass-border)', background: '#000' }}>
               {user.front_image ? (
                 <img src={ApiClient.resolveStaticUrl(user.front_image, user.storage_mode as any)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Front" />

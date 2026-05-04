@@ -2,6 +2,16 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.6-Admin-Workflow] - 2026-05-04
+
+### 🚀 Added
+- **Tabbed History & Lookup**: Refactored both Lookup and History pages with a dual-tab system (Individual/Business) for unified record management.
+- **Re-scan Visual Feedback**: Added a "RENEWAL MODE" badge to the Scan page when updating existing records.
+- **Business History API**: Enhanced the business lookup endpoint with date range filtering and interaction sorting.
+- **UI Hardening**: Resolved missing icon imports and unused variable warnings in the frontend.
+
+---
+
 ## [v1.8.5-Deletion-Lifecycle] - 2026-05-04
 
 ### 🚀 Added

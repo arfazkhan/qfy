@@ -82,3 +82,52 @@ async def search_users(
     users = result.scalars().all()
     
     return [UserRecord.model_validate(u) for u in users]
+
+from ..db.business_models import Business
+from ..schemas import BusinessCreate # Using BusinessCreate or similar for list response
+
+@router.get("/businesses")
+async def search_businesses(
+    q: Optional[str] = Query(None, description="Search by Name or CR Number"),
+    status: Optional[str] = Query(None, description="COMPLIANT, NON_COMPLIANT, PARTIAL, INVALID"),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    query = select(Business)
+    
+    # Date Range filtering
+    if start_date:
+        query = query.where(func.date(Business.last_updated) >= start_date)
+    if end_date:
+        query = query.where(func.date(Business.last_updated) <= end_date)
+
+    if q:
+        search_filter = or_(
+            Business.cr_number.ilike(f"%{q}%"),
+            Business.name.ilike(f"%{q}%")
+        )
+        query = query.where(search_filter)
+    
+    if status:
+        query = query.where(Business.status == status)
+        
+    query = query.order_by(Business.last_updated.desc())
+    
+    result = await db.execute(query)
+    businesses = result.scalars().all()
+    
+    # We'll return a simplified list for the lookup
+    return [
+        {
+            "id": b.id,
+            "cr_number": b.cr_number,
+            "name": b.name,
+            "status": b.status,
+            "cr_expiry_date": b.cr_expiry, # Fixed field name
+            "nationality": b.nationality,
+            "last_updated": b.last_updated
+        }
+        for b in businesses
+    ]

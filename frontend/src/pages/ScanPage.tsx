@@ -58,6 +58,38 @@ export const ScanPage: React.FC = () => {
   const [mobileNumber, setMobileNumber] = useState('974');
   const [isSuccess, setIsSuccess] = useState(false);
   const [duplicateData, setDuplicateData] = useState<any>(null);
+  const [isReScan, setIsReScan] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qid = params.get('qid');
+    const reScan = params.get('re_scan') === 'true';
+
+    if (qid) {
+      setIsReScan(reScan);
+      const fetchExistingUser = async () => {
+        try {
+          const response = await ApiClient.get<any>(`/users/${qid}`);
+          if (response.user) {
+            setEditedData({
+              name: response.user.name,
+              name_ar: response.user.name_ar,
+              qid_number: response.user.qid_number,
+              dob: response.user.dob,
+              nationality: response.user.nationality,
+              expiry_date: response.user.expiry_date
+            });
+            if (response.user.mobile_number) {
+              setMobileNumber(response.user.mobile_number.replace('+', ''));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch existing user for re-scan", err);
+        }
+      };
+      fetchExistingUser();
+    }
+  }, []);
 
   useEffect(() => {
     if (scanResult?.user) {
@@ -591,7 +623,23 @@ export const ScanPage: React.FC = () => {
             <ChevronLeft size={14} />
             BACK TO DASHBOARD
           </button>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>SCAN ID</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>SCAN ID</h1>
+            {isReScan && (
+              <span style={{ 
+                background: 'rgba(59, 130, 246, 0.1)', 
+                color: '#3b82f6', 
+                padding: '4px 12px', 
+                borderRadius: '20px', 
+                fontSize: '0.65rem', 
+                fontWeight: 800,
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                letterSpacing: '1px'
+              }}>
+                RENEWAL MODE
+              </span>
+            )}
+          </div>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>Upload or scan ID card to extract information</p>
         </div>
         <button className="btn-luxury" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px' }}>
