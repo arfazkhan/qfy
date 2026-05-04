@@ -26,6 +26,9 @@ class Business(Base):
     
     status = Column(String, default="NON_COMPLIANT") # INVALID, NON_COMPLIANT, PARTIAL, COMPLIANT
     
+    visit_count = Column(Integer, default=0)
+    last_seen_at = Column(DateTime, nullable=True)
+    
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 

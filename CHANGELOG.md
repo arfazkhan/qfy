@@ -2,6 +2,21 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.7-CR-Standardization] - 2026-05-04
+
+### 🛠️ Fixed
+- **Business Quick Search**: Resolved "Business Not Found" issue by standardizing on 8-digit zero-padded CR numbers.
+- **Data Integrity**: Migrated existing numeric CRs in database to 8-digit zero-padded format.
+
+### 🚀 Changed
+- **Dashboard UI**: Re-implemented 8-digit entry grid for Business searches with automatic zero-padding.
+- **Business Detail Visibility**: Enhanced Business search results to display CR Expiry, Owner/Manager names, and stakeholder status.
+- **Business Visit Logging**: Implemented backend support and frontend controls to log visits for businesses, including visit counter and "Last Seen" tracking.
+- **UI High-Fidelity Icons**: Replaced emojis with professional Lucide icons (CheckCircle2, AlertOctagon) across the compliance checklist.
+- **Registration Workflow**: Added mandatory 8-digit zero-padding to the Business Registration form for consistent data entry.
+
+---
+
 ## [v1.8.6-Admin-Workflow] - 2026-05-04
 
 ### 🚀 Added

@@ -72,16 +72,40 @@ async def search_business(
         await db.commit()
         
     return {
-        "id": business.id,
+        "id": str(business.id),
         "name": business.name,
         "cr_number": business.cr_number,
+        "cr_expiry": business.cr_expiry.isoformat() if business.cr_expiry else None,
         "status": business.status,
         "latest_note": latest_note.content if latest_note else None,
+        "owner_name": owner.name if owner else None,
+        "manager_name": manager.name if manager else None,
+        "visit_count": business.visit_count or 0,
+        "last_seen_at": business.last_seen_at.isoformat() if business.last_seen_at else None,
         "document_summary": [
             {"type": doc.document_type, "status": "valid" if (not doc.expiry_date or doc.expiry_date >= date.today()) else "expired"}
             for doc in docs
         ]
     }
+
+@router.post("/{business_id}/visit")
+async def log_business_visit(
+    business_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Business).where(Business.id == uuid.UUID(business_id))
+    )
+    business = result.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    business.visit_count = (business.visit_count or 0) + 1
+    business.last_seen_at = datetime.utcnow()
+    await db.commit()
+    
+    return {"status": "success", "visit_count": business.visit_count}
 
 @router.get("/{cr_number}")
 async def get_business_details(

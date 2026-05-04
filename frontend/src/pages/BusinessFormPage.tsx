@@ -131,8 +131,11 @@ export const BusinessFormPage: React.FC = () => {
 
     try {
       // 1. Upsert Business
+      // Ensure CR number is 8 digits padded
+      const paddedCr = formData.cr_number.padStart(8, '0');
+      
       const business = await ApiClient.post<any>('/businesses/upsert', {
-        cr_number: formData.cr_number,
+        cr_number: paddedCr,
         name: formData.name,
         cr_expiry_date: formData.cr_expiry_date,
         nationality: formData.nationality,

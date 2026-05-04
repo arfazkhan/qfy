@@ -93,9 +93,13 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleLogVisit = async () => {
-    if (!lastResult || !lastResult.qid) return;
+    if (!lastResult) return;
     try {
-      await ApiClient.post(`/users/${lastResult.qid}/visit`, {});
+      const endpoint = lastResult.type === 'individual' 
+        ? `/users/${lastResult.qid}/visit` 
+        : `/businesses/${lastResult.id}/visit`;
+        
+      await ApiClient.post(endpoint, {});
       setIsVisitLogged(true);
       // Refresh stats and user data to show updated counts
       fetchDashboardStats();
@@ -131,7 +135,7 @@ export const DashboardPage: React.FC = () => {
         return;
       }
     } else {
-      const crRegex = /^\d{5,12}$/;
+      const crRegex = /^\d{1,12}$/; // Allow entry but we pad to 8
       if (!crRegex.test(finalSearchValue)) {
         setError("Please enter a valid CR number.");
         return;
@@ -147,11 +151,17 @@ export const DashboardPage: React.FC = () => {
         if (response) {
           setLastResult({
             type: 'business',
+            id: response.id,
             status: response.status,
             name: response.name,
             cr_number: response.cr_number,
+            cr_expiry: response.cr_expiry ? new Date(response.cr_expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
             latest_note: response.latest_note,
-            document_summary: response.document_summary
+            document_summary: response.document_summary,
+            owner_name: response.owner_name,
+            manager_name: response.manager_name,
+            visit_count: response.visit_count,
+            last_seen_at: response.last_seen_at ? new Date(response.last_seen_at).toLocaleDateString() : 'Never'
           });
         }
       } catch (err: any) {
@@ -370,59 +380,50 @@ export const DashboardPage: React.FC = () => {
                 {searchType === 'individual' ? 'Enter Q-ID Number' : 'Enter CR Number'}
               </label>
 
-              {/* Digit Entry Grid */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${searchType === 'individual' ? 11 : 8}, 1fr)`,
-                gap: searchType === 'individual' ? '6px' : '10px',
-                marginBottom: '32px'
-              }}>
-                {(searchType === 'individual' ? qidDigits : crDigits).map((digit, i) => (
-                  <input
-                    key={`${searchType}-${i}`}
-                    id={`${searchType}-digit-${i}`}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    autoFocus={i === 0 && !lastResult}
-                    style={{
-                      width: '100%',
-                      height: '64px',
-                      fontSize: '1.5rem',
-                      fontWeight: 900,
-                      textAlign: 'center',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${digit ? 'var(--gold-primary)' : 'var(--glass-border)'}`,
-                      borderRadius: '12px',
-                      color: 'var(--gold-primary)',
-                      outline: 'none',
-                      transition: 'all 0.2s',
-                      boxShadow: digit ? '0 0 10px rgba(212, 175, 55, 0.1)' : 'none'
-                    }}
-                    value={digit}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      if (val) {
-                        if (searchType === 'individual') {
+              {searchType === 'individual' ? (
+                /* Digit Entry Grid for QID */
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(11, 1fr)',
+                  gap: '6px',
+                  marginBottom: '32px'
+                }}>
+                  {qidDigits.map((digit, i) => (
+                    <input
+                      key={`individual-${i}`}
+                      id={`individual-digit-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      autoFocus={i === 0 && !lastResult}
+                      style={{
+                        width: '100%',
+                        height: '64px',
+                        fontSize: '1.5rem',
+                        fontWeight: 900,
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${digit ? 'var(--gold-primary)' : 'var(--glass-border)'}`,
+                        borderRadius: '12px',
+                        color: 'var(--gold-primary)',
+                        outline: 'none',
+                        transition: 'all 0.2s',
+                        boxShadow: digit ? '0 0 10px rgba(212, 175, 55, 0.1)' : 'none'
+                      }}
+                      value={digit}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        if (val) {
                           const newDigits = [...qidDigits];
                           newDigits[i] = val;
                           setQidDigits(newDigits);
                           if (i < 10) {
                             setTimeout(() => document.getElementById(`individual-digit-${i + 1}`)?.focus(), 10);
                           }
-                        } else {
-                          const newDigits = [...crDigits];
-                          newDigits[i] = val;
-                          setCrDigits(newDigits);
-                          if (i < 7) {
-                            setTimeout(() => document.getElementById(`business-digit-${i + 1}`)?.focus(), 10);
-                          }
                         }
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Backspace') {
-                        if (searchType === 'individual') {
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace') {
                           if (!qidDigits[i] && i > 0) {
                             const newDigits = [...qidDigits];
                             newDigits[i - 1] = '';
@@ -433,7 +434,57 @@ export const DashboardPage: React.FC = () => {
                             newDigits[i] = '';
                             setQidDigits(newDigits);
                           }
-                        } else {
+                        } else if (e.key === 'Enter') {
+                          handleSearch();
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                /* Digit Entry Grid for Business CR (8 Digits) */
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
+                  gap: '10px',
+                  marginBottom: '32px'
+                }}>
+                  {crDigits.map((digit, i) => (
+                    <input
+                      key={`business-${i}`}
+                      id={`business-digit-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      autoFocus={i === 0 && !lastResult}
+                      style={{
+                        width: '100%',
+                        height: '64px',
+                        fontSize: '1.5rem',
+                        fontWeight: 900,
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${digit ? 'var(--gold-primary)' : 'var(--glass-border)'}`,
+                        borderRadius: '12px',
+                        color: 'var(--gold-primary)',
+                        outline: 'none',
+                        transition: 'all 0.2s',
+                        boxShadow: digit ? '0 0 10px rgba(212, 175, 55, 0.1)' : 'none'
+                      }}
+                      value={digit}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        if (val) {
+                          const newDigits = [...crDigits];
+                          newDigits[i] = val;
+                          setCrDigits(newDigits);
+                          if (i < 7) {
+                            setTimeout(() => document.getElementById(`business-digit-${i + 1}`)?.focus(), 10);
+                          }
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace') {
                           if (!crDigits[i] && i > 0) {
                             const newDigits = [...crDigits];
                             newDigits[i - 1] = '';
@@ -444,14 +495,14 @@ export const DashboardPage: React.FC = () => {
                             newDigits[i] = '';
                             setCrDigits(newDigits);
                           }
+                        } else if (e.key === 'Enter') {
+                          handleSearch();
                         }
-                      } else if (e.key === 'Enter') {
-                        handleSearch();
-                      }
-                    }}
-                  />
-                ))}
-              </div>
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <button
@@ -460,13 +511,14 @@ export const DashboardPage: React.FC = () => {
                   onClick={() => {
                     if (searchType === 'individual') {
                       setQidDigits(Array(11).fill(''));
-                      document.getElementById('individual-digit-0')?.focus();
+                   setCrDigits(Array(8).fill(''));
+                      setTimeout(() => document.getElementById('individual-digit-0')?.focus(), 10);
                     } else {
-                      setCrDigits(Array(8).fill(''));
-                      document.getElementById('business-digit-0')?.focus();
+                      setQidSearch('');
                     }
                     setError(null);
                     setLastResult(null);
+                    setIsVisitLogged(false);
                   }}
                 >
                   CLEAR
@@ -478,7 +530,7 @@ export const DashboardPage: React.FC = () => {
                     height: '54px',
                     fontSize: '0.85rem',
                     letterSpacing: '1px',
-                    opacity: (searchType === 'individual' ? qidDigits : crDigits).some(d => d !== '') ? 1 : 0.5
+                    opacity: (searchType === 'individual' ? qidDigits.some(d => d !== '') : crDigits.some(d => d !== '')) ? 1 : 0.5
                   }}
                   onClick={handleSearch}
                 >
@@ -540,37 +592,103 @@ export const DashboardPage: React.FC = () => {
                 {/* === BUSINESS RESULT CARD === */}
                 {lastResult.type === 'business' ? (
                   lastResult.status === 'NOT_FOUND' ? (
-                    <div className="search-result-card not-found">
-                      <div className="not-found-content">
-                        <div className="not-found-icon">🏢</div>
-                        <h3>Business Not Found</h3>
-                        <p>CR: <strong>{lastResult.cr_number}</strong> is not in the system.</p>
-                        <button
-                          className="create-btn"
-                          onClick={() => navigate(`/business/add?cr=${lastResult.cr_number}`)}
-                        >
-                          Register Business
-                        </button>
+                    <div className="result-card-modern status-muted" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px' }}>
+                      <div style={{ position: 'relative', marginBottom: '24px' }}>
+                        <div style={{ 
+                          width: '80px', 
+                          height: '80px', 
+                          borderRadius: '50%', 
+                          background: 'rgba(255,255,255,0.03)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          border: '1px solid var(--glass-border)' 
+                        }}>
+                          <Building2 size={32} color="var(--text-muted)" />
+                        </div>
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          right: -10, 
+                          padding: '4px 10px', 
+                          background: 'rgba(255,255,255,0.05)', 
+                          borderRadius: '6px', 
+                          fontSize: '0.6rem', 
+                          fontWeight: 800, 
+                          color: 'var(--text-muted)', 
+                          border: '1px solid var(--glass-border)' 
+                        }}>
+                          NOT FOUND
+                        </div>
                       </div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>Business Intelligence Not Found</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '280px', lineHeight: '1.6', marginBottom: '32px' }}>
+                        The CR number <strong>{lastResult.cr_number}</strong> is not currently registered in our compliance network.
+                      </p>
+                      <button 
+                        className="btn-gold" 
+                        style={{ padding: '14px 40px', borderRadius: '14px', width: 'auto', minWidth: '220px' }}
+                        onClick={() => navigate(`/business/add?cr=${lastResult.cr_number}`)}
+                      >
+                        REGISTER NEW BUSINESS
+                      </button>
                     </div>
                   ) : lastResult.status === 'SYSTEM_ERROR' ? (
-                    <div className="search-result-card system-error">
-                      <p>{lastResult.errorMessage}</p>
+                    <div className="result-card-modern status-danger" style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px' }}>
+                      <div style={{ position: 'relative', marginBottom: '24px' }}>
+                        <div style={{ 
+                          width: '80px', 
+                          height: '80px', 
+                          borderRadius: '50%', 
+                          background: 'rgba(239, 68, 68, 0.05)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          border: '1px solid rgba(239, 68, 68, 0.2)' 
+                        }}>
+                          <AlertOctagon size={32} color="var(--danger)" />
+                        </div>
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          right: -15, 
+                          padding: '4px 10px', 
+                          background: 'rgba(239, 68, 68, 0.1)', 
+                          borderRadius: '6px', 
+                          fontSize: '0.6rem', 
+                          fontWeight: 800, 
+                          color: 'var(--danger)', 
+                          border: '1px solid rgba(239, 68, 68, 0.2)' 
+                        }}>
+                          SYSTEM ERROR
+                        </div>
+                      </div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>Intelligent Lookup Failure</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '280px', lineHeight: '1.6', marginBottom: '32px' }}>
+                        {lastResult.errorMessage || 'Something went wrong while processing the business search.'}
+                      </p>
+                      <button 
+                        className="btn-luxury" 
+                        style={{ borderColor: 'var(--danger)', color: 'var(--danger)', padding: '12px 32px' }}
+                        onClick={handleSearch}
+                      >
+                        RETRY LOOKUP
+                      </button>
                     </div>
                   ) : (
                     <div className="result-card-modern business-summary" style={{ padding: '24px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                           <div style={{
-                            width: '56px', height: '56px', borderRadius: '14px',
+                            width: '64px', height: '64px', borderRadius: '16px',
                             background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                           }}>
-                            <Building2 size={28} color="#3b82f6" />
+                            <Building2 size={32} color="#3b82f6" />
                           </div>
                           <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>{lastResult.name}</h3>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>CR Number: {lastResult.cr_number}</p>
+                            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>{lastResult.name}</h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>CR Number: {lastResult.cr_number}</p>
                           </div>
                         </div>
                         <div className={`status-pill ${lastResult.status.toLowerCase().replace('_', '-')}`} style={{
@@ -583,20 +701,40 @@ export const DashboardPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="doc-checklist-mini" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '32px', paddingLeft: '8px' }}>
+                        <div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>CR Expiry</p>
+                          <h4 style={{ fontSize: '1.1rem', color: '#fff', fontWeight: 800, margin: '8px 0' }}>{lastResult.cr_expiry}</h4>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                            Status: <span style={{ color: lastResult.status === 'COMPLIANT' ? '#10b981' : '#ef4444' }}>{lastResult.status}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Stakeholders</p>
+                          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 700 }}>Owner: <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>{lastResult.owner_name || 'Not Linked'}</span></div>
+                            <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 700 }}>Manager: <span style={{ fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>{lastResult.manager_name || 'Not Linked'}</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="doc-checklist-mini" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px' }}>COMPLIANCE CHECKLIST</span>
                         {lastResult.document_summary?.map((doc: any, i: number) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>{doc.type}</span>
-                            <span style={{ color: doc.status === 'valid' ? '#10b981' : '#ef4444', fontSize: '0.9rem' }}>
-                              {doc.status === 'valid' ? '✅' : '❌'}
-                            </span>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{doc.type}</span>
+                            {doc.status === 'valid' ? (
+                              <CheckCircle2 size={16} color="#10b981" />
+                            ) : (
+                              <AlertOctagon size={16} color="#ef4444" />
+                            )}
                           </div>
                         ))}
                       </div>
 
                       {lastResult.latest_note && (
                         <div className="latest-note-snippet" style={{
-                          background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '20px',
+                          background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '24px',
                           borderLeft: '3px solid var(--gold-primary)'
                         }}>
                           <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--gold-primary)', display: 'block', marginBottom: '4px' }}>LATEST NOTE</span>
@@ -604,13 +742,38 @@ export const DashboardPage: React.FC = () => {
                         </div>
                       )}
 
-                      <button
-                        className="btn-luxury"
-                        onClick={() => navigate(`/business/${lastResult.cr_number}`)}
-                        style={{ width: '100%', height: '48px', borderRadius: '12px' }}
-                      >
-                        MANAGE COMPLIANCE
-                      </button>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        {!isVisitLogged ? (
+                          <button 
+                            className="btn-gold" 
+                            style={{ 
+                              flex: 2, 
+                              height: '48px', 
+                              fontSize: '0.8rem', 
+                              letterSpacing: '1px', 
+                              background: 'linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-secondary) 100%)',
+                              color: '#000',
+                              border: 'none',
+                              borderRadius: '12px'
+                            }}
+                            onClick={handleLogVisit}
+                          >
+                            LOG VISIT
+                          </button>
+                        ) : (
+                          <div style={{ flex: 2, height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 800 }}>
+                            <CheckCircle2 size={16} color="var(--success)" />
+                            LOGGED
+                          </div>
+                        )}
+                        <button
+                          className="btn-luxury"
+                          onClick={() => navigate(`/business/${lastResult.cr_number}`)}
+                          style={{ flex: 1, height: '48px', borderRadius: '12px', fontSize: '0.8rem' }}
+                        >
+                          DETAILS
+                        </button>
+                      </div>
                     </div>
                   )
                 ) : (
