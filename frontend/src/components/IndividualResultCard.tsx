@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  User as UserIcon, 
   CheckCircle2, 
   ExternalLink, 
   AlertTriangle, 
@@ -9,7 +8,7 @@ import {
   RefreshCcw,
   Hash
 } from 'lucide-react';
-import { ApiClient } from '../api/client';
+
 
 export type ResultStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'INVALID' | 'NOT_FOUND' | 'SYSTEM_ERROR';
 
