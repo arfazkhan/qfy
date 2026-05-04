@@ -205,10 +205,15 @@ async def upsert_business(
 
     return business
 
+from ..utils.storage import save_business_document
+
 @router.post("/{cr_number}/documents")
 async def add_or_update_document(
     cr_number: str,
-    doc_data: BusinessDocumentCreate,
+    document_type: str = Form(...),
+    is_available: bool = Form(True),
+    expiry_date: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -221,28 +226,42 @@ async def add_or_update_document(
     # Check if doc exists
     res = await db.execute(
         select(BusinessDocument)
-        .where(BusinessDocument.business_id == business.id, BusinessDocument.document_type == doc_data.type)
+        .where(BusinessDocument.business_id == business.id, BusinessDocument.document_type == document_type)
     )
     doc = res.scalars().first()
     
     expiry = None
-    if doc_data.expiry_date:
-        expiry = datetime.strptime(doc_data.expiry_date, "%Y-%m-%d").date()
+    if expiry_date:
+        try:
+            expiry = datetime.strptime(expiry_date, "%Y-%m-%d").date()
+        except ValueError:
+            pass # Keep None if invalid
+            
+    file_url = None
+    original_filename = None
+    if file:
+        file_url = save_business_document(cr_number, document_type, file)
+        original_filename = file.filename
         
     if doc:
-        doc.is_available = doc_data.is_available
+        doc.is_available = is_available
         doc.expiry_date = expiry
+        if file_url:
+            doc.file_url = file_url
+            doc.original_filename = original_filename
     else:
         doc = BusinessDocument(
             business_id=business.id,
-            document_type=doc_data.type,
-            is_available=doc_data.is_available,
-            expiry_date=expiry
+            document_type=document_type,
+            is_available=is_available,
+            expiry_date=expiry,
+            file_url=file_url,
+            original_filename=original_filename
         )
         db.add(doc)
         
     await db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "file_url": doc.file_url}
 
 @router.post("/{cr_number}/notes")
 async def add_business_note(

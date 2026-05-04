@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Date, ForeignKey, Text, Enum
+from sqlalchemy import Column, String, Integer, DateTime, Date, ForeignKey, Text, Enum, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime
@@ -38,8 +38,10 @@ class BusinessDocument(Base):
     # Type: Commercial License, Authorization Letter, etc.
     document_type = Column(String, nullable=False)
     file_url = Column(String, nullable=True) # URL or Local Path
+    original_filename = Column(String, nullable=True)
     storage_mode = Column(String, default="LOCAL") # LOCAL, CLOUD
     expiry_date = Column(Date, nullable=True)
+    is_available = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 

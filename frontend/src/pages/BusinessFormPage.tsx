@@ -5,7 +5,6 @@ import {
   ShieldCheck, 
   CheckCircle2, 
   User, 
-  FileText,
   Calendar,
   AlertCircle,
   Save,
@@ -15,6 +14,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiClient } from '../api/client';
 import { IdentityPicker } from '../components/IdentityPicker';
+import { DocumentUploadRow } from '../components/DocumentUploadRow';
 
 export const BusinessFormPage: React.FC = () => {
   const navigate = useNavigate();
@@ -40,13 +40,7 @@ export const BusinessFormPage: React.FC = () => {
   const [linkedAuthorized, setLinkedAuthorized] = useState<any>(null);
   const [linkedManager, setLinkedManager] = useState<any>(null);
 
-  const [documents, setDocuments] = useState([
-    { type: 'Authorization Letter', required: true, uploaded: false },
-    { type: 'Commercial License', required: true, uploaded: false },
-    { type: 'Authorized Signatures', required: true, uploaded: false },
-    { type: 'Establishment Card (Computer Card)', required: true, uploaded: false },
-    { type: 'Manager Trade License', required: true, uploaded: false },
-  ]);
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,11 +116,7 @@ export const BusinessFormPage: React.FC = () => {
       return;
     }
     
-    const missingDocs = documents.filter(d => d.required && !d.uploaded);
-    if (missingDocs.length > 0) {
-      setError(`Mandatory documents missing: ${missingDocs.map(d => d.type).join(', ')}`);
-      return;
-    }
+
 
     setLoading(true);
     setError(null);
@@ -147,14 +137,8 @@ export const BusinessFormPage: React.FC = () => {
         manager_id: formData.manager_id
       });
 
-      // 2. Create documents (placeholders for MVP)
-      for (const doc of documents) {
-        await ApiClient.post(`/businesses/${business.cr_number}/documents`, {
-          type: doc.type,
-          is_available: doc.uploaded,
-          expiry_date: null
-        });
-      }
+      // No need to create document placeholders here, they are created on demand
+      // or verified by the compliance engine.
 
       setSuccess(true);
       setTimeout(() => navigate(`/business/${business.cr_number}`), 2000);
@@ -319,32 +303,27 @@ export const BusinessFormPage: React.FC = () => {
           </div>
 
           <div className="luxury-card" style={{ padding: '32px' }}>
-            <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '24px' }}>DOCUMENT CHECKLIST (MVP)</h2>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '20px' }}>Mark documents currently in possession</p>
+            <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px', marginBottom: '24px' }}>DOCUMENT COMPLIANCE</h2>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '20px' }}>Upload mandatory documents or mark as available</p>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {documents.map((doc, i) => (
-                <div 
-                  key={i} 
-                  onClick={() => {
-                    const newDocs = [...documents];
-                    newDocs[i].uploaded = !newDocs[i].uploaded;
-                    setDocuments(newDocs);
-                  }}
-                  style={{ 
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                    padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px',
-                    border: `1px solid ${doc.uploaded ? 'var(--gold-muted)' : 'var(--glass-border)'}`,
-                    cursor: 'pointer', transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <FileText size={18} color={doc.uploaded ? 'var(--gold-primary)' : 'var(--text-muted)'} />
-                    <span style={{ fontSize: '0.85rem', color: doc.uploaded ? '#fff' : 'rgba(255,255,255,0.6)' }}>{doc.type}</span>
-                  </div>
-                  {doc.uploaded ? <CheckCircle2 size={18} color="var(--gold-primary)" /> : <div style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid var(--glass-border)' }} />}
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                "Authorization Letter",
+                "Commercial License",
+                "Establishment Card",
+                "Authorized Signatures",
+                "Manager Trade License"
+              ].map((docType) => {
+                return (
+                  <DocumentUploadRow 
+                    key={docType}
+                    crNumber={formData.cr_number}
+                    docType={docType}
+                    existingDoc={undefined}
+                    onUpdate={() => {}}
+                  />
+                );
+              })}
             </div>
           </div>
 

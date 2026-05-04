@@ -2,6 +2,18 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.8.0-Document-Uploads] - 2026-05-04
+
+### 🚀 Added
+- **Document Upload System**: Replaced simple compliance checklist with a functional file upload system.
+- **File Storage Backend**: Documents are now stored in `static/uploads/{cr_number}` with unique naming conventions.
+- **Document Management UI**: New `DocumentUploadRow` component for uploading, scanning, and viewing mandatory documents.
+- **Expiry Tracking**: Integrated expiry date tracking for each business document.
+- **Multipart Support**: Backend router now supports `multipart/form-data` for secure document intake.
+- **Code Hygiene**: Resolved multiple linting warnings by purging unused imports across `BusinessFormPage`, `BusinessDetailPage`, and `DocumentUploadRow`.
+
+---
+
 ## [v1.7.0-Compliance-Engine] - 2026-05-04
 
 ### 🚀 Added

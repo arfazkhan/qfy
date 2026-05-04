@@ -4,19 +4,17 @@ import {
   ChevronLeft, 
   ShieldCheck, 
   User, 
-  FileText,
   AlertCircle,
-  Plus,
   Clock,
   History,
   ExternalLink,
-  Edit3,
   Lock,
   RefreshCw,
   MoreVertical
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiClient } from '../api/client';
+import { DocumentUploadRow } from '../components/DocumentUploadRow';
 
 export const BusinessDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -243,43 +241,24 @@ export const BusinessDetailPage: React.FC = () => {
             <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1.5px', marginBottom: '24px' }}>COMPLIANCE CHECKLIST</h3>
             
             <div className="doc-grid">
-              {business.documents.map((doc: any) => (
-                <div key={doc.id} className="doc-compliance-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-                    <div style={{ 
-                      width: '40px', height: '40px', borderRadius: '10px', 
-                      background: doc.is_available ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <FileText size={20} color={doc.is_available ? '#10b981' : '#ef4444'} />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>{doc.type}</h4>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {doc.expiry_date ? `Expires: ${new Date(doc.expiry_date).toLocaleDateString()}` : 'No expiry set'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                    <span style={{ 
-                      padding: '4px 12px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800,
-                      background: doc.is_available ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: doc.is_available ? '#10b981' : '#ef4444',
-                      border: `1px solid ${doc.is_available ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                    }}>
-                      {doc.is_available ? 'COMPLIANT' : 'MISSING'}
-                    </span>
-                    <button className="btn-icon-luxury">
-                      <Edit3 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button className="add-doc-btn">
-                <Plus size={18} />
-                Add Missing Document Requirement
-              </button>
+              {[
+                "Authorization Letter",
+                "Commercial License",
+                "Establishment Card",
+                "Authorized Signatures",
+                "Manager Trade License"
+              ].map((docType) => {
+                const existing = business.documents.find((d: any) => d.document_type === docType);
+                return (
+                  <DocumentUploadRow 
+                    key={docType}
+                    crNumber={business.cr_number}
+                    docType={docType}
+                    existingDoc={existing}
+                    onUpdate={fetchBusiness}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
