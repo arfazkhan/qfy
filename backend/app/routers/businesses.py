@@ -50,7 +50,23 @@ async def search_business(
     latest_note = note_result.scalars().first()
     
     # Recalculate status
-    status = compute_business_status(business, docs)
+    # Fetch linked people for status check
+    owner = None
+    if business.owner_id:
+        owner_res = await db.execute(select(User).where(User.id == business.owner_id))
+        owner = owner_res.scalars().first()
+    
+    auth_person = None
+    if business.authorized_person_id:
+        auth_res = await db.execute(select(User).where(User.id == business.authorized_person_id))
+        auth_person = auth_res.scalars().first()
+        
+    manager = None
+    if business.manager_id:
+        manager_res = await db.execute(select(User).where(User.id == business.manager_id))
+        manager = manager_res.scalars().first()
+
+    status = compute_business_status(business, docs, owner, auth_person, manager)
     if status != business.status:
         business.status = status
         await db.commit()
@@ -92,6 +108,12 @@ async def get_business_details(
         auth_res = await db.execute(select(User).where(User.id == business.authorized_person_id))
         auth_person = auth_res.scalars().first()
         
+    # Get manager info
+    manager = None
+    if business.manager_id:
+        manager_res = await db.execute(select(User).where(User.id == business.manager_id))
+        manager = manager_res.scalars().first()
+        
     # Get docs
     docs_res = await db.execute(select(BusinessDocument).where(BusinessDocument.business_id == business.id))
     docs = docs_res.scalars().all()
@@ -104,17 +126,26 @@ async def get_business_details(
     )
     notes = notes_res.scalars().all()
     
-    # Refresh status just in case
-    current_status = compute_business_status(business, docs)
+    # Refresh status
+    current_status = compute_business_status(business, docs, owner, auth_person, manager)
+    if current_status != business.status:
+        business.status = current_status
+        await db.commit()
     
     return {
         "id": business.id,
         "name": business.name,
         "cr_number": business.cr_number,
         "cr_expiry_date": business.cr_expiry,
+        "nationality": business.nationality,
+        "address": business.address,
+        "mobile": business.mobile,
+        "business_type": business.business_type,
+        "business_nature": business.business_nature,
         "status": current_status,
         "owner": owner,
         "authorized_person": auth_person,
+        "manager": manager,
         "documents": docs,
         "notes": notes
     }
@@ -134,15 +165,27 @@ async def upsert_business(
     if business:
         business.name = data.name
         business.cr_expiry = expiry_date
+        business.nationality = data.nationality
+        business.address = data.address
+        business.mobile = data.mobile
+        business.business_type = data.business_type
+        business.business_nature = data.business_nature
         business.owner_id = data.owner_id
         business.authorized_person_id = data.authorized_person_id
+        business.manager_id = data.manager_id
     else:
         business = Business(
             name=data.name,
             cr_number=data.cr_number,
             cr_expiry=expiry_date,
+            nationality=data.nationality,
+            address=data.address,
+            mobile=data.mobile,
+            business_type=data.business_type,
+            business_nature=data.business_nature,
             owner_id=data.owner_id,
             authorized_person_id=data.authorized_person_id,
+            manager_id=data.manager_id,
             status="INVALID" # Initial state
         )
         db.add(business)

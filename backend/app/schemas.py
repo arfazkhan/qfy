@@ -68,8 +68,17 @@ class BusinessCreate(BaseModel):
     name: str
     cr_number: str
     cr_expiry_date: str # ISO Date string
+    
+    # New Fields
+    nationality: Optional[str] = None
+    address: Optional[str] = None
+    mobile: Optional[str] = None
+    business_type: Optional[str] = None
+    business_nature: Optional[str] = None
+    
     owner_id: Optional[UUID] = None
     authorized_person_id: Optional[UUID] = None
+    manager_id: Optional[UUID] = None
     initial_note: Optional[str] = None
 
 class BusinessDocumentCreate(BaseModel):

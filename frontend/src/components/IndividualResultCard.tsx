@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 
-export type ResultStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'INVALID' | 'NOT_FOUND' | 'SYSTEM_ERROR';
+export type ResultStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'INVALID' | 'NOT_FOUND' | 'SYSTEM_ERROR' | 'COMPLIANT' | 'NON_COMPLIANT' | 'PARTIAL';
 
 export interface IndividualResult {
   status: ResultStatus;
@@ -25,6 +25,7 @@ export interface IndividualResult {
   frontImage?: string;
   mobile_number?: string;
   errorMessage?: string;
+  type?: 'individual' | 'business';
 }
 
 interface IndividualResultCardProps {
@@ -47,17 +48,19 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
   const getStatusBadge = () => {
     switch (result.status) {
       case 'ACTIVE':
+      case 'COMPLIANT':
         return (
           <div className="badge-active-modern">
             <CheckCircle2 size={12} />
-            ACTIVE
+            {result.status === 'COMPLIANT' ? 'COMPLIANT' : 'ACTIVE'}
           </div>
         );
       case 'EXPIRING_SOON':
+      case 'PARTIAL':
         return (
           <div className="badge-warning-modern" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '4px 12px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <AlertTriangle size={12} />
-            EXPIRING SOON
+            {result.status === 'PARTIAL' ? 'PARTIAL' : 'EXPIRING SOON'}
           </div>
         );
       case 'GRACE_PERIOD':
@@ -68,10 +71,11 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
           </div>
         );
       case 'INVALID':
+      case 'NON_COMPLIANT':
         return (
           <div className="badge-danger-modern" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '4px 12px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <AlertTriangle size={12} />
-            INACTIVE
+            {result.status === 'NON_COMPLIANT' ? 'NON-COMPLIANT' : 'INACTIVE'}
           </div>
         );
       default:
@@ -106,11 +110,28 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
           </div>
         );
       case 'INVALID':
+      case 'NON_COMPLIANT':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Inactive</p>
-            <h4 style={{ fontSize: '1.4rem', color: 'var(--danger)', fontWeight: 800, margin: '8px 0' }}>{result.daysExpired} days ago</h4>
-            <p style={{ fontSize: '0.75rem', color: 'var(--danger)', opacity: 0.8 }}>Expiry Date: {result.expiry}</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</p>
+            <h4 style={{ fontSize: '1.4rem', color: 'var(--danger)', fontWeight: 800, margin: '8px 0' }}>{result.status === 'NON_COMPLIANT' ? 'NON-COMPLIANT' : `${result.daysExpired} days ago`}</h4>
+            <p style={{ fontSize: '0.75rem', color: 'var(--danger)', opacity: 0.8 }}>{result.status === 'NON_COMPLIANT' ? 'Compliance Failed' : `Expiry Date: ${result.expiry}`}</p>
+          </div>
+        );
+      case 'COMPLIANT':
+        return (
+          <div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Compliance</p>
+            <h4 style={{ fontSize: '1.4rem', color: 'var(--success)', fontWeight: 800, margin: '8px 0' }}>VERIFIED</h4>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>All documents valid</p>
+          </div>
+        );
+      case 'PARTIAL':
+        return (
+          <div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Compliance</p>
+            <h4 style={{ fontSize: '1.4rem', color: '#f59e0b', fontWeight: 800, margin: '8px 0' }}>PARTIAL</h4>
+            <p style={{ fontSize: '0.75rem', color: '#f59e0b', opacity: 0.8 }}>Warnings present</p>
           </div>
         );
       default:
@@ -120,10 +141,13 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
 
   const getCardStatusClass = () => {
     switch (result.status) {
-      case 'ACTIVE': return 'status-success';
+      case 'ACTIVE': 
+      case 'COMPLIANT': return 'status-success';
       case 'EXPIRING_SOON': 
+      case 'PARTIAL':
       case 'GRACE_PERIOD': return 'status-warning';
-      case 'INVALID': return 'status-danger';
+      case 'INVALID': 
+      case 'NON_COMPLIANT': return 'status-danger';
       case 'NOT_FOUND':
       case 'SYSTEM_ERROR': return 'status-muted';
       default: return '';

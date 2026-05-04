@@ -2,6 +2,24 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.7.0-Compliance-Engine] - 2026-05-04
+
+### 🚀 Added
+- **Multi-Tier Compliance Engine**: Implemented a 3-layer status engine for businesses (CR Validity, Mandatory Document Check, and Linked Identity Validation).
+- **Manager Incharge Identity Link**: Added a new mandatory identity link for businesses, including its own specific compliance requirements (Manager Trade License).
+- **Expanded Business Metadata**: Added fields for Nationality, Registered Address, Contact Mobile, Business Type, and Business Nature.
+- **Establishment Card Integration**: Introduced the "Establishment Card (Computer Card)" as a mandatory compliance document.
+
+### 🛠️ Changed
+- **Strict Registration Validation**: The system now blocks business registration if mandatory links (Owner, Authorized Person, Manager) or documents are missing.
+- **Enhanced Business Dashboard**: Updated `IndividualResultCard` and `BusinessDetailPage` to reflect new compliance states (COMPLIANT, NON_COMPLIANT, PARTIAL).
+- **Compliance Status Real-time Recalculation**: The system now automatically cross-references the expiry dates of all linked individuals when calculating business status.
+
+### 🐞 Fixed
+- **Database Schema Sync**: Applied Alembic migrations to synchronize the SQLite database with the new multi-relation business model.
+
+---
+
 ## [v1.6.1-Privacy-Aesthetics] - 2026-05-04
 
 ### 🚀 Added

@@ -114,8 +114,10 @@ export const BusinessDetailPage: React.FC = () => {
             </div>
             <div>
               <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>{business.name}</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px' }}>
                 <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 600 }}>CR: {business.cr_number}</span>
+                <span className="dot-sep" style={{ color: 'var(--glass-border)' }}>•</span>
+                <span style={{ fontSize: '0.9rem', color: 'var(--gold-primary)', fontWeight: 700, textTransform: 'uppercase' }}>{business.business_nature || 'Nature Not Set'}</span>
                 <span className="dot-sep" style={{ color: 'var(--glass-border)' }}>•</span>
                 <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 600 }}>Expires: {new Date(business.cr_expiry_date).toLocaleDateString()}</span>
               </div>
@@ -137,6 +139,35 @@ export const BusinessDetailPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '32px' }}>
         {/* Left Section: Details & Documents */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          
+          {/* Basic Details Grid */}
+          <div className="luxury-card" style={{ padding: '32px' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1.5px', marginBottom: '24px' }}>BUSINESS PROFILE</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+              <div>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>NATIONALITY</p>
+                <p style={{ fontSize: '1rem', fontWeight: 600, color: '#fff' }}>{business.nationality || '—'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>BUSINESS TYPE</p>
+                <p style={{ fontSize: '1rem', fontWeight: 600, color: '#fff' }}>{business.business_type || '—'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>CONTACT MOBILE</p>
+                <p style={{ fontSize: '1rem', fontWeight: 600, color: '#fff' }}>{business.mobile || '—'}</p>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>REGISTERED ADDRESS</p>
+                <p style={{ fontSize: '0.95rem', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>{business.address || 'No address recorded'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>VALIDITY (CR)</p>
+                <p style={{ fontSize: '1rem', fontWeight: 600, color: business.status === 'INVALID' ? '#ef4444' : '#fff' }}>
+                  {new Date(business.cr_expiry_date) < new Date() ? 'EXPIRED' : 'ACTIVE'}
+                </p>
+              </div>
+            </div>
+          </div>
           
           {/* Linked Identities */}
           <div className="luxury-card" style={{ padding: '32px' }}>
@@ -162,33 +193,48 @@ export const BusinessDetailPage: React.FC = () => {
               </div>
 
               {/* Authorized Person */}
-              {business.authorized_person ? (
-                <div className="identity-link-card" onClick={() => navigate(`/user/${business.authorized_person.qid_number}`)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <ShieldCheck size={24} color="#3b82f6" />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '0.5px' }}>AUTHORIZED PERSON</p>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>{business.authorized_person.name}</h4>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>QID: {business.authorized_person.qid_number}</p>
-                    </div>
+              <div className={business.authorized_person ? "identity-link-card" : "identity-link-card disabled"} 
+                   onClick={() => business.authorized_person && navigate(`/user/${business.authorized_person.qid_number}`)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: '48px', height: '48px', borderRadius: '12px', 
+                    background: business.authorized_person ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.03)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                  }}>
+                    {business.authorized_person ? <ShieldCheck size={24} color="#3b82f6" /> : <Lock size={24} color="var(--text-muted)" />}
                   </div>
-                  <ExternalLink size={16} color="var(--text-muted)" />
-                </div>
-              ) : (
-                <div className="identity-link-card disabled" style={{ cursor: 'default', opacity: 0.5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Lock size={24} color="var(--text-muted)" />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px' }}>AUTHORIZED PERSON</p>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-muted)' }}>Not Assigned</h4>
-                    </div>
+                  <div>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: business.authorized_person ? '#3b82f6' : 'var(--text-muted)', letterSpacing: '0.5px' }}>AUTHORIZED PERSON</p>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: business.authorized_person ? '#fff' : 'var(--text-muted)' }}>
+                      {business.authorized_person ? business.authorized_person.name : 'Not Assigned'}
+                    </h4>
+                    {business.authorized_person && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>QID: {business.authorized_person.qid_number}</p>}
                   </div>
                 </div>
-              )}
+                {business.authorized_person && <ExternalLink size={16} color="var(--text-muted)" />}
+              </div>
+
+              {/* Manager Incharge */}
+              <div className={business.manager ? "identity-link-card" : "identity-link-card disabled"} 
+                   onClick={() => business.manager && navigate(`/user/${business.manager.qid_number}`)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ 
+                    width: '48px', height: '48px', borderRadius: '12px', 
+                    background: business.manager ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.03)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                  }}>
+                    {business.manager ? <User size={24} color="#10b981" /> : <Lock size={24} color="var(--text-muted)" />}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, color: business.manager ? '#10b981' : 'var(--text-muted)', letterSpacing: '0.5px' }}>MANAGER INCHARGE</p>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: business.manager ? '#fff' : 'var(--text-muted)' }}>
+                      {business.manager ? business.manager.name : 'Not Assigned'}
+                    </h4>
+                    {business.manager && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>QID: {business.manager.qid_number}</p>}
+                  </div>
+                </div>
+                {business.manager && <ExternalLink size={16} color="var(--text-muted)" />}
+              </div>
             </div>
           </div>
 

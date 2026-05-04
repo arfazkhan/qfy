@@ -12,9 +12,17 @@ class Business(Base):
     name = Column(String, nullable=False)
     cr_expiry = Column(Date, nullable=False)
     
+    # Basic Details (New)
+    nationality = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    mobile = Column(String, nullable=True)
+    business_type = Column(String, nullable=True)
+    business_nature = Column(String, nullable=True)
+    
     # Identity Links
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     authorized_person_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
     status = Column(String, default="NON_COMPLIANT") # INVALID, NON_COMPLIANT, PARTIAL, COMPLIANT
     

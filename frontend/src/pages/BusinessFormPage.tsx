@@ -25,18 +25,27 @@ export const BusinessFormPage: React.FC = () => {
     cr_number: initialCr,
     name: '',
     cr_expiry_date: '',
+    nationality: '',
+    address: '',
+    mobile: '',
+    business_type: '',
+    business_nature: '',
     owner_id: null as string | null,
     authorized_person_id: null as string | null,
+    manager_id: null as string | null,
     initial_note: '',
   });
 
   const [linkedOwner, setLinkedOwner] = useState<any>(null);
   const [linkedAuthorized, setLinkedAuthorized] = useState<any>(null);
+  const [linkedManager, setLinkedManager] = useState<any>(null);
 
   const [documents, setDocuments] = useState([
-    { type: 'Commercial License', required: true, uploaded: false },
     { type: 'Authorization Letter', required: true, uploaded: false },
+    { type: 'Commercial License', required: true, uploaded: false },
     { type: 'Authorized Signatures', required: true, uploaded: false },
+    { type: 'Establishment Card (Computer Card)', required: true, uploaded: false },
+    { type: 'Manager Trade License', required: true, uploaded: false },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -51,6 +60,8 @@ export const BusinessFormPage: React.FC = () => {
     if (linkedId) {
       if (role === 'authorized') {
         handleAuthorizedLink(linkedId);
+      } else if (role === 'manager') {
+        handleManagerLink(linkedId);
       } else {
         handleOwnerLink(linkedId);
       }
@@ -89,6 +100,16 @@ export const BusinessFormPage: React.FC = () => {
     }
   };
 
+  const handleManagerLink = async (userId: string) => {
+    try {
+      const user = await ApiClient.get<any>(`/users/${userId}`);
+      setLinkedManager(user);
+      setFormData(prev => ({ ...prev, manager_id: userId }));
+    } catch (err) {
+      setError('Failed to link manager');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.cr_number || !formData.name || !formData.cr_expiry_date) {
@@ -96,8 +117,14 @@ export const BusinessFormPage: React.FC = () => {
       return;
     }
 
-    if (!formData.owner_id) {
-      setError('An Owner ID must be linked to register the business.');
+    if (!formData.owner_id || !formData.authorized_person_id || !formData.manager_id) {
+      setError('Owner, Authorized Person, and Manager must all be linked.');
+      return;
+    }
+    
+    const missingDocs = documents.filter(d => d.required && !d.uploaded);
+    if (missingDocs.length > 0) {
+      setError(`Mandatory documents missing: ${missingDocs.map(d => d.type).join(', ')}`);
       return;
     }
 
@@ -110,8 +137,14 @@ export const BusinessFormPage: React.FC = () => {
         cr_number: formData.cr_number,
         name: formData.name,
         cr_expiry_date: formData.cr_expiry_date,
+        nationality: formData.nationality,
+        address: formData.address,
+        mobile: formData.mobile,
+        business_type: formData.business_type,
+        business_nature: formData.business_nature,
         owner_id: formData.owner_id,
-        authorized_person_id: formData.authorized_person_id
+        authorized_person_id: formData.authorized_person_id,
+        manager_id: formData.manager_id
       });
 
       // 2. Create documents (placeholders for MVP)
@@ -225,6 +258,63 @@ export const BusinessFormPage: React.FC = () => {
                   />
                 </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <label className="luxury-label">NATIONALITY</label>
+                  <input 
+                    name="nationality"
+                    value={formData.nationality}
+                    onChange={handleInputChange}
+                    className="input-luxury" 
+                    placeholder="e.g. Qatari" 
+                  />
+                </div>
+                <div>
+                  <label className="luxury-label">MOBILE NUMBER</label>
+                  <input 
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                    className="input-luxury" 
+                    placeholder="e.g. +974..." 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="luxury-label">ADDRESS</label>
+                <input 
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  className="input-luxury" 
+                  placeholder="Street, Zone, Building..." 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <label className="luxury-label">BUSINESS TYPE</label>
+                  <input 
+                    name="business_type"
+                    value={formData.business_type}
+                    onChange={handleInputChange}
+                    className="input-luxury" 
+                    placeholder="e.g. LLC, WLL" 
+                  />
+                </div>
+                <div>
+                  <label className="luxury-label">BUSINESS NATURE</label>
+                  <input 
+                    name="business_nature"
+                    value={formData.business_nature}
+                    onChange={handleInputChange}
+                    className="input-luxury" 
+                    placeholder="e.g. Gold Trading" 
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -299,7 +389,7 @@ export const BusinessFormPage: React.FC = () => {
               <User size={20} color="var(--gold-primary)" />
               <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px' }}>AUTHORIZED PERSON</h2>
             </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '24px' }}>Optional identity link for operational authority</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '24px' }}>Identity with operational authority</p>
             
             <IdentityPicker 
               label="Search or Scan Authorized QID"
@@ -307,6 +397,22 @@ export const BusinessFormPage: React.FC = () => {
               onUnlink={() => { setLinkedAuthorized(null); setFormData(prev => ({ ...prev, authorized_person_id: null })); }}
               linkedUser={linkedAuthorized}
               role="authorized"
+            />
+          </div>
+
+          <div className="form-section luxury-card" style={{ padding: '32px' }}>
+            <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <User size={20} color="var(--gold-primary)" />
+              <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px' }}>MANAGER INCHARGE</h2>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '24px' }}>Designated manager for compliance</p>
+            
+            <IdentityPicker 
+              label="Search or Scan Manager QID"
+              onLink={handleManagerLink}
+              onUnlink={() => { setLinkedManager(null); setFormData(prev => ({ ...prev, manager_id: null })); }}
+              linkedUser={linkedManager}
+              role="manager"
             />
           </div>
 
