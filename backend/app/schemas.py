@@ -23,6 +23,7 @@ class UserBase(BaseModel):
     is_manual_edit: bool = False
     modified_fields: Optional[str] = None
     mobile_number: Optional[str] = None
+    storage_mode: str = "LOCAL"
 
 class UserRecord(UserBase):
     id: UUID
@@ -75,6 +76,7 @@ class BusinessDocumentCreate(BaseModel):
     type: str
     is_available: bool = False
     expiry_date: Optional[str] = None
+    storage_mode: str = "LOCAL"
 
 class BusinessNoteCreate(BaseModel):
     content: str

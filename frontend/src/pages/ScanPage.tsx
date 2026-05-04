@@ -20,6 +20,9 @@ import { useEffect } from 'react';
 import { ApiClient } from '../api/client';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import { useSettingsStore } from '../store/settingsStore';
+import { TauriStorageService } from '../services/TauriStorage';
+import { HardDrive, Cloud } from 'lucide-react';
 
 interface ImageState {
   file: File | null;
@@ -34,6 +37,7 @@ export const ScanPage: React.FC = () => {
   const navigate = useNavigate();
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
+  const { storageMode, setStorageMode } = useSettingsStore();
 
   const [frontImage, setFrontImage] = useState<ImageState>({
     file: null, preview: null, base64: null, name: '', size: '', status: 'idle'
@@ -231,10 +235,31 @@ export const ScanPage: React.FC = () => {
       return;
     }
     try {
+      let frontImgValue = frontImage.base64;
+      let backImgValue = backImage.base64;
+
+      // Handle Local Storage if in Tauri
+      if (storageMode === 'LOCAL' && TauriStorageService.isTauri()) {
+        try {
+          const frontFilename = getTargetFilename('FRONT');
+          const backFilename = getTargetFilename('BACK');
+
+          const frontPath = await TauriStorageService.saveImage(frontImage.base64!, frontFilename, 'Individuals');
+          const backPath = await TauriStorageService.saveImage(backImage.base64!, backFilename, 'Individuals');
+
+          frontImgValue = frontPath;
+          backImgValue = backPath;
+        } catch (storageErr) {
+          console.error('Local storage failed, falling back to cloud:', storageErr);
+          // Fallback or alert user
+        }
+      }
+
       const userData = {
         ...editedData,
-        front_image: frontImage.base64,
-        back_image: backImage.base64,
+        front_image: frontImgValue,
+        back_image: backImgValue,
+        storage_mode: storageMode,
         manual_edit: modifiedFields.size > 0,
         modified_fields: Array.from(modifiedFields),
         mobile_number: `+${mobileNumber}`,
@@ -341,6 +366,42 @@ export const ScanPage: React.FC = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Compliance visit logged successfully</p>
         </div>
       )}
+
+      {/* Storage Mode Selector */}
+      <div className="luxury-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '32px', height: '32px', borderRadius: '8px', 
+            background: 'rgba(212, 175, 55, 0.1)', display: 'flex', 
+            alignItems: 'center', justifyContent: 'center' 
+          }}>
+            <HardDrive size={16} color="var(--gold-primary)" />
+          </div>
+          <div>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>STORAGE MODE</h4>
+            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+              {storageMode === 'LOCAL' ? 'Saving to Desktop Archive' : 'Saving to Cloud Infrastructure'}
+            </p>
+          </div>
+        </div>
+
+        <div className="storage-toggle-group">
+          <button 
+            onClick={() => setStorageMode('LOCAL')}
+            className={storageMode === 'LOCAL' ? 'storage-btn active' : 'storage-btn'}
+          >
+            <HardDrive size={14} />
+            Local
+          </button>
+          <button 
+            onClick={() => setStorageMode('CLOUD')}
+            className={storageMode === 'CLOUD' ? 'storage-btn active' : 'storage-btn'}
+          >
+            <Cloud size={14} />
+            Cloud
+          </button>
+        </div>
+      </div>
 
       {duplicateData && (
         <div style={{
@@ -863,7 +924,7 @@ export const ScanPage: React.FC = () => {
             <button className="modal-close" onClick={() => setFullscreenImage(null)}>
               <X size={20} />
             </button>
-            <img src={fullscreenImage} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '16px' }} alt="Preview" />
+            <img src={fullscreenImage || undefined} style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '16px' }} alt="Preview" />
           </div>
         </div>
       )}

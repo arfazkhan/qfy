@@ -29,7 +29,8 @@ class BusinessDocument(Base):
     
     # Type: Commercial License, Authorization Letter, etc.
     document_type = Column(String, nullable=False)
-    file_url = Column(String, nullable=True)
+    file_url = Column(String, nullable=True) # URL or Local Path
+    storage_mode = Column(String, default="LOCAL") # LOCAL, CLOUD
     expiry_date = Column(Date, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)

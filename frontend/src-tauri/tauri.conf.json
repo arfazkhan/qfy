@@ -21,6 +21,12 @@
       "csp": null
     }
   },
+  "plugins": {
+    "fs": {
+      "scope": ["$DESKTOP/*", "$DESKTOP/QFY_Archive/**/*"]
+    },
+    "path": {}
+  },
   "bundle": {
     "active": true,
     "targets": "all",

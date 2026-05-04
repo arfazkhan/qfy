@@ -21,8 +21,9 @@ class User(Base):
     dob = Column(Date, nullable=True)
     nationality = Column(String, nullable=True)
     employer = Column(String, nullable=True)
-    front_image = Column(String, nullable=True) # Base64 or URL
-    back_image = Column(String, nullable=True)  # Base64 or URL
+    front_image = Column(String, nullable=True) # Base64, URL or Local Path
+    back_image = Column(String, nullable=True)  # Base64, URL or Local Path
+    storage_mode = Column(String, default="LOCAL") # LOCAL, CLOUD
     
     # Audit tracking
     is_manual_edit = Column(Boolean, default=False)

@@ -32,6 +32,7 @@ interface UserDetail {
   visit_count: number;
   last_seen_at?: string;
   is_manual_edit: boolean;
+  storage_mode: string;
   status?: string;
   status_message?: string;
 }
@@ -160,7 +161,7 @@ export const UserDetailPage: React.FC = () => {
         <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
           <div style={{ width: '160px', height: '160px', borderRadius: '24px', overflow: 'hidden', border: '2px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)', flexShrink: 0 }}>
             {user.front_image ? (
-              <img src={ApiClient.resolveStaticUrl(user.front_image)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
+              <img src={ApiClient.resolveStaticUrl(user.front_image, user.storage_mode as any)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Avatar" />
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                 <UserIcon size={48} />
@@ -229,7 +230,7 @@ export const UserDetailPage: React.FC = () => {
             <h3 style={{ fontSize: '0.8rem', fontWeight: 900, letterSpacing: '1px', color: 'var(--gold-primary)', marginBottom: '24px' }}>FRONT SIDE SCAN</h3>
             <div style={{ width: '100%', aspectRatio: '1.6', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--glass-border)', background: '#000' }}>
               {user.front_image ? (
-                <img src={ApiClient.resolveStaticUrl(user.front_image)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Front" />
+                <img src={ApiClient.resolveStaticUrl(user.front_image, user.storage_mode as any)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Front" />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Front Scan Available</div>
               )}
@@ -240,7 +241,7 @@ export const UserDetailPage: React.FC = () => {
             <h3 style={{ fontSize: '0.8rem', fontWeight: 900, letterSpacing: '1px', color: 'var(--gold-primary)', marginBottom: '24px' }}>BACK SIDE SCAN</h3>
             <div style={{ width: '100%', aspectRatio: '1.6', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--glass-border)', background: '#000' }}>
               {user.back_image ? (
-                <img src={ApiClient.resolveStaticUrl(user.back_image)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Back" />
+                <img src={ApiClient.resolveStaticUrl(user.back_image, user.storage_mode as any)} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Back" />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Back Scan Available</div>
               )}

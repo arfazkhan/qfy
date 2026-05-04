@@ -2,6 +2,26 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.6.0-Hybrid-Storage] - 2026-05-04
+
+### 🚀 Added
+- **Hybrid Local-First Storage**: Implemented a desktop-first storage strategy using Tauri v2 native filesystem plugins. Users can now choose to archive document scans locally on their desktop (`~/Desktop/QFY_Archive/`) to reduce cloud storage costs and egress fees.
+- **Persistent Storage Preference**: Added a global "Storage Mode" selector in the `ScanPage` that persists user preferences (LOCAL vs. CLOUD) across sessions via `useSettingsStore`.
+- **Tauri Native Resolution**: Integrated `convertFileSrc` into the `ApiClient` to securely resolve and display local filesystem images within the Tauri environment.
+- **Storage Mode Metadata**: Updated the backend database schema and Pydantic models to track the `storage_mode` for every `User` and `BusinessDocument`.
+
+### 🛠️ Changed
+- **Archive Permission Scopes**: Configured Tauri `fs` and `path` plugins with recursive desktop scopes to ensure secure and authorized file operations.
+- **Unified Path Resolution**: Refactored `UserDetailPage` and image rendering components to dynamically switch between cloud URLs and local URI schemes based on record provenance.
+
+### 🐞 Fixed
+- **JSX Structural Integrity**: Fixed critical nesting errors in `ScanPage.tsx` caused by a dangling `scan-page-grid` div and mismatched JSX expressions.
+- **Type Safety Hardening**: Resolved TypeScript errors related to `fullscreenImage` nullability and image source attribute expectations.
+- **UI Overflow**: Corrected success modal positioning to ensure overlays are properly decoupled from the layout grid.
+- **Import Hygiene**: Purged unused `Save` icons and redundant React imports to optimize the frontend bundle.
+
+---
+
 ## [v1.5.0-UX-Stability] - 2026-05-04
 
 ### 🚀 Added

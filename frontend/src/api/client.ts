@@ -20,10 +20,22 @@ export const ApiClient = {
     return API_BASE;
   },
 
-  resolveStaticUrl(path: string | null | undefined) {
+  resolveStaticUrl(path: string | null | undefined, mode: 'LOCAL' | 'CLOUD' = 'CLOUD') {
     if (!path) return '';
     if (path.startsWith('data:') || path.startsWith('http')) return path;
-    // Remove /api/v1 from the end to get the root host
+
+    // Handle Local Storage for Tauri
+    if (mode === 'LOCAL' && (window as any).__TAURI_INTERNALS__) {
+      try {
+        // Dynamically import to avoid breaking non-tauri environments
+        const { convertFileSrc } = (window as any).__TAURI__.core;
+        return convertFileSrc(path);
+      } catch (e) {
+        console.error('Failed to resolve local path via Tauri:', e);
+      }
+    }
+    
+    // Default Cloud/Backend resolution
     const host = API_BASE.split('/api/v1')[0];
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${host}${cleanPath}`;
