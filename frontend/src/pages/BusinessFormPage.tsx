@@ -9,7 +9,8 @@ import {
   Calendar,
   AlertCircle,
   Save,
-  ArrowRight
+  ArrowRight,
+  History
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiClient } from '../api/client';
@@ -26,6 +27,7 @@ export const BusinessFormPage: React.FC = () => {
     cr_expiry_date: '',
     owner_id: null as string | null,
     authorized_person_id: null as string | null,
+    initial_note: '',
   });
 
   const [linkedOwner, setLinkedOwner] = useState<any>(null);
@@ -254,6 +256,23 @@ export const BusinessFormPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="luxury-card" style={{ padding: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <History size={18} color="var(--gold-primary)" />
+              <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px' }}>INITIAL OPERATIONAL NOTE</h2>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '24px' }}>Capture Day-1 context or document promises</p>
+            
+            <textarea 
+              name="initial_note"
+              value={formData.initial_note}
+              onChange={(e) => setFormData(prev => ({ ...prev, initial_note: e.target.value }))}
+              className="input-luxury" 
+              placeholder="e.g., Customer promised to bring original CR tomorrow..." 
+              style={{ height: '120px', resize: 'none', padding: '16px', fontSize: '0.9rem' }}
+            />
           </div>
         </div>
 

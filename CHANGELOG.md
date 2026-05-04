@@ -9,6 +9,7 @@ All notable changes to the Q-FY project will be documented in this file.
 - **Dynamic Filename Preview**: Added a real-time "Target Archive Name" preview in the scan UI (e.g., `NAME_QID_FRONT.jpg`) to ensure naming consistency before archival.
 - **Visual Success Feedback**: Integrated high-fidelity glassmorphism success overlays and automated redirection logic for both identity and business registrations.
 - **Manual Data Fallback**: Decoupled registration from OCR dependency, allowing for complete manual data entry and storage even when automatic extraction fails.
+- **Onboarding Context**: Added "Initial Operational Note" field to the business registration form, allowing operators to capture day-one context that automatically flows into the business timeline.
 
 ### 🛠️ Changed
 - **Precision Date Pickers**: Replaced legacy text inputs with native HTML5 date pickers for DOB and Expiry fields, supported by backend ISO normalization.

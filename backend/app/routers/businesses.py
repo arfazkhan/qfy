@@ -149,6 +149,17 @@ async def upsert_business(
         
     await db.commit()
     await db.refresh(business)
+
+    # Create initial note if provided
+    if data.initial_note:
+        note = BusinessNote(
+            business_id=business.id,
+            content=data.initial_note,
+            operator_id=current_user.id if hasattr(current_user, 'id') else None
+        )
+        db.add(note)
+        await db.commit()
+
     return business
 
 @router.post("/{cr_number}/documents")

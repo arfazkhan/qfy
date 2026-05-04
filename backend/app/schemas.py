@@ -69,6 +69,7 @@ class BusinessCreate(BaseModel):
     cr_expiry_date: str # ISO Date string
     owner_id: Optional[UUID] = None
     authorized_person_id: Optional[UUID] = None
+    initial_note: Optional[str] = None
 
 class BusinessDocumentCreate(BaseModel):
     type: str
