@@ -2,6 +2,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 export interface RequestOptions extends RequestInit {
   auth?: boolean;
+  responseType?: 'json' | 'blob' | 'text';
 }
 
 let accessToken: string | null = null;
@@ -10,6 +11,10 @@ let onUnauthorized: (() => Promise<void>) | null = null;
 export const ApiClient = {
   setToken(token: string) {
     accessToken = token;
+  },
+
+  getToken() {
+    return accessToken;
   },
 
   setUnauthorizedHandler(handler: () => Promise<void>) {
@@ -68,6 +73,13 @@ export const ApiClient = {
         error.status = response.status;
         error.data = errorData;
         throw error;
+      }
+
+      if (options.responseType === 'blob') {
+        return await response.blob() as any;
+      }
+      if (options.responseType === 'text') {
+        return await response.text() as any;
       }
 
       return response.json();

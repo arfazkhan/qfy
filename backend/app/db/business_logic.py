@@ -1,26 +1,33 @@
-from datetime import date
-from typing import List
-from .business_models import Business, BusinessDocument
+from datetime import date, timedelta
+from typing import List, Tuple
 
 def compute_business_status(
-    business: Business, 
-    docs: List[BusinessDocument],
+    business, 
+    docs: List,
     owner: any = None,
     authorized_person: any = None,
     manager: any = None
-) -> str:
+) -> Tuple[str, List[dict]]:
     """
-    Computes the compliance status of a business based on CR expiry,
-    document presence, and linked identity validity (Owner, Authorized Person, Manager).
+    Computes the compliance status of a business with severity-coded reasons.
+    Returns (status, List[{type, message, severity}])
     """
     today = date.today()
+    reasons = []
     
-    # LAYER 1: BUSINESS VALIDITY (CR Expiry)
+    grace_period = timedelta(days=30)
+    expiring_soon_period = timedelta(days=60)
+    
+    # 1. CR CHECK
     if business.cr_expiry < today:
-        return "INVALID"
-    
-    # LAYER 2: DOCUMENT CHECK
-    # Required documents per final MVP spec
+        reasons.append({
+            "type": "CR_INVALID",
+            "message": f"Commercial Registration (CR) expired on {business.cr_expiry.isoformat()}",
+            "severity": "HIGH"
+        })
+        return "INVALID", reasons
+
+    # 2. DOCUMENT CHECK
     required_doc_types = [
         "Authorization Letter",
         "Commercial License",
@@ -28,44 +35,66 @@ def compute_business_status(
         "Authorized Signatures",
         "Manager Trade License"
     ]
-    
     present_docs = {doc.document_type: doc for doc in docs}
     
     for doc_type in required_doc_types:
         doc = present_docs.get(doc_type)
         if not doc:
-            return "NON_COMPLIANT"
-        if doc.expiry_date and doc.expiry_date < today:
-            return "NON_COMPLIANT"
+            reasons.append({
+                "type": "DOC_MISSING",
+                "message": f"Missing required document: {doc_type}",
+                "severity": "HIGH"
+            })
+        elif doc.expiry_date:
+            if doc.expiry_date < today:
+                severity = "HIGH" if (today - doc.expiry_date) > grace_period else "MEDIUM"
+                reasons.append({
+                    "type": "DOC_EXPIRED",
+                    "message": f"Expired document: {doc_type} (expired on {doc.expiry_date.isoformat()})",
+                    "severity": severity
+                })
+            elif doc.expiry_date <= today + expiring_soon_period:
+                reasons.append({
+                    "type": "DOC_EXPIRING",
+                    "message": f"Document expiring soon: {doc_type} ({doc.expiry_date.isoformat()})",
+                    "severity": "LOW"
+                })
 
-    # LAYER 3: LINKED PEOPLE CHECK
+    # 3. PEOPLE CHECK
     people = [
         ("Owner", owner, business.owner_id),
         ("Authorized Person", authorized_person, business.authorized_person_id),
         ("Manager", manager, business.manager_id)
     ]
     
-    has_warnings = False
-    
     for label, person, person_id in people:
-        # Check if linked
         if not person_id:
-            return "NON_COMPLIANT"
-            
-        # If person object provided, check expiry
-        if person:
+            reasons.append({
+                "type": "PEOPLE_MISSING",
+                "message": f"Missing linked stakeholder: {label}",
+                "severity": "HIGH"
+            })
+        elif person:
             if person.expiry_date < today:
-                return "NON_COMPLIANT"
-            
-            # Check for warnings (e.g., grace period)
-            # This logic should match the frontend/backend status logic for individuals
-            # For now, if it's within 30 days of expiry, we flag it.
-            # Assuming person.status or similar check
-            from datetime import timedelta
-            if person.expiry_date <= today + timedelta(days=30):
-                has_warnings = True
+                severity = "HIGH" if (today - person.expiry_date) > grace_period else "MEDIUM"
+                reasons.append({
+                    "type": "PEOPLE_EXPIRED",
+                    "message": f"Stakeholder ID expired: {label} ({person.name})",
+                    "severity": severity
+                })
+            elif person.expiry_date <= today + expiring_soon_period:
+                reasons.append({
+                    "type": "PEOPLE_EXPIRING",
+                    "message": f"Stakeholder ID expiring soon: {label} ({person.name})",
+                    "severity": "LOW"
+                })
 
-    if has_warnings:
-        return "PARTIAL"
+    # Final Status Determination
+    if any(r["severity"] == "HIGH" for r in reasons):
+        return "NON_COMPLIANT", reasons
+    if any(r["severity"] == "MEDIUM" for r in reasons):
+        return "PARTIAL", reasons
+    if any(r["severity"] == "LOW" for r in reasons):
+        return "WARNING", reasons
         
-    return "COMPLIANT"
+    return "COMPLIANT", []

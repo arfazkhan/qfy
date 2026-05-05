@@ -30,15 +30,21 @@ export const HistoryPage: React.FC = () => {
 
   const [searchParams] = useSearchParams();
   const qidParam = searchParams.get('qid');
+  const crParam = searchParams.get('cr');
 
   useEffect(() => {
     if (qidParam) {
+      setSearchType('individual');
       setSearchQuery(qidParam);
       performSearch(qidParam);
+    } else if (crParam) {
+      setSearchType('business');
+      setSearchQuery(crParam);
+      performSearch(crParam);
     } else {
       performSearch();
     }
-  }, [qidParam, searchType]); // Re-fetch on tab change
+  }, [qidParam, crParam]); 
 
   const performSearch = async (query?: string, start?: string, end?: string) => {
     setLoading(true);
@@ -72,64 +78,74 @@ export const HistoryPage: React.FC = () => {
   };
 
 
+  const isEmbedded = searchParams.get('embedded') === 'true';
+
   return (
     <div className="dashboard-grid">
-      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2>Archives & Interactions</h2>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
-            {searchType === 'individual' ? results.length : businessResults.length} ENTRIES FOUND
+      {!isEmbedded && (
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2>Archives & Interactions</h2>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
+              {searchType === 'individual' ? results.length : businessResults.length} ENTRIES FOUND
+            </div>
+          </div>
+
+          <div className="search-tabs-container" style={{
+            display: 'flex',
+            gap: '2px',
+            background: 'rgba(255,255,255,0.03)',
+            padding: '4px',
+            borderRadius: '12px',
+            border: '1px solid var(--glass-border)',
+          }}>
+            <button
+              className={`tab-btn ${searchType === 'individual' ? 'active' : ''}`}
+              onClick={() => setSearchType('individual')}
+              style={{
+                padding: '8px 20px',
+                borderRadius: '8px',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: searchType === 'individual' ? 'var(--gold-primary)' : 'transparent',
+                color: searchType === 'individual' ? '#000' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Globe size={14} />
+              INDIVIDUAL
+            </button>
+            <button
+              className={`tab-btn ${searchType === 'business' ? 'active' : ''}`}
+              onClick={() => setSearchType('business')}
+              style={{
+                padding: '8px 20px',
+                borderRadius: '8px',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: searchType === 'business' ? 'var(--gold-primary)' : 'transparent',
+                color: searchType === 'business' ? '#000' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <Building2 size={14} />
+              BUSINESS
+            </button>
           </div>
         </div>
-
-        <div className="search-tabs-container" style={{
-          display: 'flex',
-          gap: '2px',
-          background: 'rgba(255,255,255,0.03)',
-          padding: '4px',
-          borderRadius: '12px',
-          border: '1px solid var(--glass-border)',
-        }}>
-          <button
-            className={`tab-btn ${searchType === 'individual' ? 'active' : ''}`}
-            onClick={() => setSearchType('individual')}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '8px',
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: searchType === 'individual' ? 'var(--gold-primary)' : 'transparent',
-              color: searchType === 'individual' ? '#000' : 'var(--text-muted)',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            INDIVIDUAL
-          </button>
-          <button
-            className={`tab-btn ${searchType === 'business' ? 'active' : ''}`}
-            onClick={() => setSearchType('business')}
-            style={{
-              padding: '8px 20px',
-              borderRadius: '8px',
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: searchType === 'business' ? 'var(--gold-primary)' : 'transparent',
-              color: searchType === 'business' ? '#000' : 'var(--text-muted)',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            BUSINESS
-          </button>
-        </div>
-      </div>
+      )}
 
       <section className="search-section">
         <div className="luxury-card search-container" style={{ padding: '24px 32px' }}>

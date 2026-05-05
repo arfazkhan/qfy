@@ -12,6 +12,8 @@ from ..middleware.auth import get_current_user, RoleChecker
 from ..schemas import UserRecord, UserBase, IDStatus
 from ..services.status_engine import calculate_id_status
 from ..db.models import User
+from ..db.business_models import BusinessMember
+import uuid
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -141,6 +143,10 @@ async def upsert_customer(
     if user_data['is_manual_edit']:
         logger.info(f"User {qid} was manually edited. Fields: {user_data['modified_fields']}")
 
+    # Link to business if provided
+    link_business_id = user_data.pop('link_business_id', None)
+    link_role = user_data.pop('link_role', 'STAFF')
+
     # Duplicate Check Logic
     force = user_data.pop('force', False)
     if not force:
@@ -158,6 +164,28 @@ async def upsert_customer(
             )
 
     user, _ = await upsert_user(db, user_data)
+
+    if link_business_id:
+        try:
+            # Check if already a member
+            member_res = await db.execute(
+                select(BusinessMember).where(
+                    BusinessMember.business_id == uuid.UUID(link_business_id),
+                    BusinessMember.user_id == user.id
+                )
+            )
+            if not member_res.scalars().first():
+                member = BusinessMember(
+                    business_id=uuid.UUID(link_business_id),
+                    user_id=user.id,
+                    role=link_role
+                )
+                db.add(member)
+                await db.commit()
+                logger.info(f"Linked user {qid} to business {link_business_id} as {link_role}")
+        except Exception as e:
+            logger.error(f"Failed to link user to business: {e}")
+
     return UserRecord.model_validate(user)
 
 @router.post("/{qid}/visit", response_model=UserRecord)

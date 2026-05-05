@@ -57,3 +57,27 @@ class BusinessNote(Base):
     
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class BusinessActivity(Base):
+    __tablename__ = "business_activities"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_id = Column(UUID(as_uuid=True), ForeignKey("businesses.id"), nullable=False)
+    operator_id = Column(UUID(as_uuid=True), ForeignKey("operators.id"), nullable=True)
+    
+    event_type = Column(String, nullable=False) # VISIT, DOC_UPLOAD, STATUS_CHANGE, NOTE
+    description = Column(String, nullable=False)
+    severity = Column(String, default="INFO") # INFO, WARNING, HIGH
+    metadata_json = Column(Text, nullable=True) # JSON string for extra data
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class BusinessMember(Base):
+    __tablename__ = "business_members"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_id = Column(UUID(as_uuid=True), ForeignKey("businesses.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    role = Column(String, nullable=False) # OWNER, MANAGER, AUTHORIZED, STAFF, VISITOR
+    
+    created_at = Column(DateTime, default=datetime.utcnow)

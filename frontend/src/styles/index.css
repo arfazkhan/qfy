@@ -21,10 +21,36 @@
 
   --accent-primary: #3b82f6;
   --accent-secondary: #6366f1;
+  --gold-primary: #d4af37;
   
   --border-subtle: rgba(255, 255, 255, 0.08);
   --glass-bg: rgba(20, 22, 24, 0.8);
   --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Global Luxury Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary);
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.2) transparent;
 }
 
 * {

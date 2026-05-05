@@ -59,11 +59,21 @@ export const ScanPage: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [duplicateData, setDuplicateData] = useState<any>(null);
   const [isReScan, setIsReScan] = useState(false);
+  const [isEmbedded, setIsEmbedded] = useState(false);
+  const [linkBusinessId, setLinkBusinessId] = useState<string | null>(null);
+  const [linkRole, setLinkRole] = useState<string>('STAFF');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qid = params.get('qid');
     const reScan = params.get('re_scan') === 'true';
+    const embedded = params.get('embedded') === 'true';
+    const bId = params.get('link_business_id');
+    const role = params.get('link_role') || 'STAFF';
+
+    setIsEmbedded(embedded);
+    setLinkBusinessId(bId);
+    setLinkRole(role);
 
     if (qid) {
       setIsReScan(reScan);
@@ -295,7 +305,9 @@ export const ScanPage: React.FC = () => {
         manual_edit: modifiedFields.size > 0,
         modified_fields: Array.from(modifiedFields),
         mobile_number: `+${mobileNumber}`,
-        force: false
+        force: false,
+        link_business_id: linkBusinessId,
+        link_role: linkRole
       };
 
       try {
@@ -306,6 +318,7 @@ export const ScanPage: React.FC = () => {
 
         setIsMobileModalOpen(false);
         setIsSuccess(true);
+        window.parent.postMessage({ type: 'SCAN_COMPLETE' }, '*');
 
         // Brief pause for the success message to be seen
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -338,7 +351,9 @@ export const ScanPage: React.FC = () => {
     try {
       const userData = {
         ...duplicateData.new,
-        force: true
+        force: true,
+        link_business_id: linkBusinessId,
+        link_role: linkRole
       };
       const userResponse = await ApiClient.post<any>('/users/upsert', userData);
       await ApiClient.post(`/users/${userData.qid_number}/visit`, {
@@ -400,40 +415,42 @@ export const ScanPage: React.FC = () => {
       )}
 
       {/* Storage Mode Selector */}
-      <div className="luxury-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '32px', height: '32px', borderRadius: '8px', 
-            background: 'rgba(212, 175, 55, 0.1)', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center' 
-          }}>
-            <HardDrive size={16} color="var(--gold-primary)" />
+      {!isEmbedded && (
+        <div className="luxury-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ 
+              width: '32px', height: '32px', borderRadius: '8px', 
+              background: 'rgba(212, 175, 55, 0.1)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center' 
+            }}>
+              <HardDrive size={16} color="var(--gold-primary)" />
+            </div>
+            <div>
+              <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>STORAGE MODE</h4>
+              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                {storageMode === 'LOCAL' ? 'Saving to Desktop Archive' : 'Saving to Cloud Infrastructure'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>STORAGE MODE</h4>
-            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              {storageMode === 'LOCAL' ? 'Saving to Desktop Archive' : 'Saving to Cloud Infrastructure'}
-            </p>
-          </div>
-        </div>
 
-        <div className="storage-toggle-group">
-          <button 
-            onClick={() => setStorageMode('LOCAL')}
-            className={storageMode === 'LOCAL' ? 'storage-btn active' : 'storage-btn'}
-          >
-            <HardDrive size={14} />
-            Local
-          </button>
-          <button 
-            onClick={() => setStorageMode('CLOUD')}
-            className={storageMode === 'CLOUD' ? 'storage-btn active' : 'storage-btn'}
-          >
-            <Cloud size={14} />
-            Cloud
-          </button>
+          <div className="storage-toggle-group">
+            <button 
+              onClick={() => setStorageMode('LOCAL')}
+              className={storageMode === 'LOCAL' ? 'storage-btn active' : 'storage-btn'}
+            >
+              <HardDrive size={14} />
+              Local
+            </button>
+            <button 
+              onClick={() => setStorageMode('CLOUD')}
+              className={storageMode === 'CLOUD' ? 'storage-btn active' : 'storage-btn'}
+            >
+              <Cloud size={14} />
+              Cloud
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {duplicateData && (
         <div style={{
@@ -601,28 +618,30 @@ export const ScanPage: React.FC = () => {
         }
       `}</style>
       {/* Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              letterSpacing: '1px',
-              cursor: 'pointer',
-              marginBottom: '12px',
-              padding: 0
-            }}
-          >
-            <ChevronLeft size={14} />
-            BACK TO DASHBOARD
-          </button>
+          {!isEmbedded && (
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: '0.7rem',
+                fontWeight: 800,
+                letterSpacing: '1px',
+                cursor: 'pointer',
+                marginBottom: '12px',
+                padding: 0
+              }}
+            >
+              <ChevronLeft size={14} />
+              BACK TO DASHBOARD
+            </button>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>SCAN ID</h1>
             {isReScan && (
@@ -917,7 +936,7 @@ export const ScanPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '12px' }}>All data extracted from front side of the ID card.</p>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '12px' }}>All data extracted from front side of the ID card.</p>
             </div>
 
             <div style={{ marginTop: '32px' }}>
@@ -925,6 +944,15 @@ export const ScanPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)', marginBottom: '16px', fontSize: '0.8rem', padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px' }}>
                   <X size={14} />
                   {error}
+                </div>
+              )}
+              {!isEmbedded && (
+                <div 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 800, marginBottom: '12px', cursor: 'pointer', letterSpacing: '1px' }}
+                  onClick={() => navigate('/dashboard')}
+                >
+                  <ChevronLeft size={14} />
+                  BACK TO DASHBOARD
                 </div>
               )}
               <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--gold-primary)', marginBottom: '16px' }}>NEXT ACTION</h4>

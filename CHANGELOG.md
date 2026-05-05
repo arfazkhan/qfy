@@ -2,6 +2,38 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.9.0-Intelligence-Dashboard-UX] - 2026-05-05
+
+### 🚀 Added
+- **BusinessActivity Engine**: Implemented a new forensic database table that captures every administrative action (visits, uploads, profile edits) with timestamps, operator IDs, and severity levels.
+- **Tiered Compliance Logic**: Engineered a high-precision backend status engine using four distinct states: `INVALID` (Hard expiry), `NON_COMPLIANT` (Missing docs/stakeholders), `PARTIAL` (Grace Period), and `WARNING` (Proactive 60-day alert).
+- **Grace Period Visual System**: Introduced high-fidelity orange badges with dynamic "Days Left" countdowns for records within the 30-day post-expiry window.
+- **Executive Summary Header**: A sleek, architectural status bar consolidating Business Name, CR, and Expiry into the top-level viewport.
+- **Dynamic Status Banner**: A high-severity alert system with "Fix Issues" CTAs that appears only when compliance failures or warnings are detected ("Silent Success" logic).
+- **Embedded View Optimization**: Implemented `?embedded=true` routing support to hide sidebars and adjust padding for seamless iframe integration in scanning workflows.
+- **Native People Management Modal**: A high-capacity roster aggregating all linked stakeholders and staff with a "Red/Amber/Blue/Dim" compliance color hierarchy.
+- **Automated Contextual Scanning**: Upgraded the scanning engine to accept `link_business_id` and `link_role` parameters, enabling 1-click identity linking.
+- **Luxury Confirmation Workflow**: Custom "Dark Luxury" glassmorphic modals for destructive actions, replacing native browser alerts.
+- **Global Branded Scrollbars**: Sleek 5px gold-tinted scrollbars implemented across the entire application shell for a unified aesthetic.
+- **PDF Intelligence Export**: Professional-grade compliance report generation using `reportlab` with robust binary stream handling.
+- **Functional Visit Logging**: A "Log Physical Visit" system that updates interaction counters and injects "VISIT" events into the forensic timeline instantly.
+
+### 🛠️ Changed
+- **Triple-Column Intelligence Grid**: Reorganized the dashboard into a high-density layout: Left (Profile/Timeline), Middle (People & Identities), and Right (Document Checklist).
+- **Minimalist Documents UI**: Refactored the checklist to use icon-only status markers (CheckCircle/XCircle/AlertTriangle) and replaced text buttons with compact `RotateCcw` action icons.
+- **Glassmorphic Hardening**: Upgraded all cards with `backdrop-filter: blur(32px)` and consistent gold accents for a "mission-ready" feel.
+- **Activity Timeline Expansion**: Removed item limits and implemented a scrollable container to support infinite forensic history.
+- **Header Action Menu**: Replaced generic icons with a premium 3-dot dropdown menu featuring "Download PDF Report" and "Delete Record" actions.
+- **Precision Metrics**: Hardened the "Checklist Summary" to scan across all linked personnel and mandatory documents for a unified 60-day warning tally.
+
+### 🐞 Fixed
+- **Note Management Lifecycle**: Resolved persistent deletion issues by standardizing UUID mapping and increasing hit areas for trash icons.
+- **Reporting Headers**: Fixed critical PDF download issues by normalizing MIME types and `Content-Disposition` headers.
+- **Visual Integrity**: Resolved transparency bleed in 3-dot menus and corrected alignment drift in the People cards using `flex-end` column logic.
+- **Reactive Data Flows**: Synchronized `fetchBusiness` across all handlers to ensure zero-latency UI updates after any data modification.
+
+---
+
 ## [v1.8.7-CR-Standardization] - 2026-05-04
 
 ### 🛠️ Fixed

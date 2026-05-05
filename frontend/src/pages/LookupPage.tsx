@@ -7,10 +7,11 @@ import {
   Globe,
   Building2,
   User as UserIcon,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react';
 import { ApiClient } from '../api/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface UserResult {
   id: string;
@@ -35,9 +36,16 @@ interface BusinessResult {
 
 export const LookupPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchType, setSearchType] = useState<'individual' | 'business'>('individual');
+  const [searchParams] = useSearchParams();
+  const viewParam = searchParams.get('view');
+  const crParam = searchParams.get('cr');
+
+  const [searchType, setSearchType] = useState<'individual' | 'business' | 'documents'>(
+    viewParam === 'docs' ? 'documents' : viewParam === 'people' ? 'individual' : 'individual'
+  );
   const [results, setResults] = useState<UserResult[]>([]);
   const [businessResults, setBusinessResults] = useState<BusinessResult[]>([]);
+  const [documentResults, setDocumentResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Filters
@@ -57,12 +65,19 @@ export const LookupPage: React.FC = () => {
         if (nationality) params.nationality = nationality;
         if (status) params.status = status;
         if (isManual !== null) params.is_manual_edit = isManual;
+        if (crParam) params.cr_number = crParam;
         const data = await ApiClient.get<UserResult[]>('/lookup/users', params);
         setResults(data);
-      } else {
+      } else if (searchType === 'business') {
         if (status) params.status = status;
+        if (crParam) params.cr_number = crParam;
         const data = await ApiClient.get<BusinessResult[]>('/lookup/businesses', params);
         setBusinessResults(data);
+      } else {
+        // documents
+        if (crParam) params.cr_number = crParam;
+        const data = await ApiClient.get<any[]>('/lookup/documents', params);
+        setDocumentResults(data);
       }
     } catch (err) {
       console.error("Search failed", err);
@@ -76,7 +91,7 @@ export const LookupPage: React.FC = () => {
       fetchResults();
     }, 300);
     return () => clearTimeout(debounce);
-  }, [query, nationality, status, isManual, searchType]);
+  }, [query, nationality, status, isManual, searchType, crParam]);
 
   const getStatusBadgeClass = (expiryStr: string) => {
     const expiry = new Date(expiryStr);
@@ -100,80 +115,106 @@ export const LookupPage: React.FC = () => {
     }
   };
 
+  const isEmbedded = searchParams.get('embedded') === 'true';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '24px' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>LOOKUP</h1>
-            <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>Advanced data filtering and record management</p>
+      {!isEmbedded && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: 1 }}>LOOKUP</h1>
+              <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>Advanced data filtering and record management</p>
+            </div>
+            
+            <div className="search-tabs-container" style={{
+              display: 'flex',
+              gap: '2px',
+              background: 'rgba(255,255,255,0.03)',
+              padding: '4px',
+              borderRadius: '12px',
+              border: '1px solid var(--glass-border)',
+              width: 'fit-content'
+            }}>
+              <button
+                className={`tab-btn ${searchType === 'individual' ? 'active' : ''}`}
+                onClick={() => setSearchType('individual')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: searchType === 'individual' ? 'var(--gold-primary)' : 'transparent',
+                  color: searchType === 'individual' ? '#000' : 'var(--text-muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <UserIcon size={14} />
+                INDIVIDUAL
+              </button>
+              <button
+                className={`tab-btn ${searchType === 'business' ? 'active' : ''}`}
+                onClick={() => setSearchType('business')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: searchType === 'business' ? 'var(--gold-primary)' : 'transparent',
+                  color: searchType === 'business' ? '#000' : 'var(--text-muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Building2 size={14} />
+                BUSINESS
+              </button>
+              <button
+                className={`tab-btn ${searchType === 'documents' ? 'active' : ''}`}
+                onClick={() => setSearchType('documents')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: searchType === 'documents' ? 'var(--gold-primary)' : 'transparent',
+                  color: searchType === 'documents' ? '#000' : 'var(--text-muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Shield size={14} />
+                DOCUMENTS
+              </button>
+            </div>
           </div>
-          
-          <div className="search-tabs-container" style={{
-            display: 'flex',
-            gap: '2px',
-            background: 'rgba(255,255,255,0.03)',
-            padding: '4px',
-            borderRadius: '12px',
-            border: '1px solid var(--glass-border)',
-            width: 'fit-content'
-          }}>
-            <button
-              className={`tab-btn ${searchType === 'individual' ? 'active' : ''}`}
-              onClick={() => setSearchType('individual')}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: searchType === 'individual' ? 'var(--gold-primary)' : 'transparent',
-                color: searchType === 'individual' ? '#000' : 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <UserIcon size={14} />
-              INDIVIDUAL
-            </button>
-            <button
-              className={`tab-btn ${searchType === 'business' ? 'active' : ''}`}
-              onClick={() => setSearchType('business')}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: searchType === 'business' ? 'var(--gold-primary)' : 'transparent',
-                color: searchType === 'business' ? '#000' : 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Building2 size={14} />
-              BUSINESS
-            </button>
-          </div>
+          <button
+            className={`btn-luxury ${isFilterVisible ? 'active' : ''}`}
+            onClick={() => setIsFilterVisible(!isFilterVisible)}
+            style={{ background: isFilterVisible ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)', padding: '12px 24px' }}
+          >
+            <Filter size={18} />
+            {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
+          </button>
         </div>
-        <button
-          className={`btn-luxury ${isFilterVisible ? 'active' : ''}`}
-          onClick={() => setIsFilterVisible(!isFilterVisible)}
-          style={{ background: isFilterVisible ? 'var(--gold-muted)' : 'rgba(255,255,255,0.02)', padding: '12px 24px' }}
-        >
-          <Filter size={18} />
-          {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
-        </button>
-      </div>
+      )}
 
       <div style={{ display: 'flex', gap: '24px', flex: 1, overflow: 'hidden' }}>
         {/* Filter Sidebar */}
@@ -377,7 +418,7 @@ export const LookupPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )) : businessResults.map((biz) => (
+              )) : searchType === 'business' ? businessResults.map((biz) => (
                 <div key={biz.id} className="luxury-card animate-scale-up" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', gap: '16px' }}>
                     <div style={{
@@ -437,6 +478,33 @@ export const LookupPage: React.FC = () => {
                       style={{ background: 'rgba(59, 130, 246, 0.1)', border: 'none', color: '#3b82f6', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
                     >
                       <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )) : documentResults.map((doc, idx) => (
+                <div key={idx} className="luxury-card animate-scale-up" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                        <Shield size={18} color="var(--gold-primary)" />
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>{doc.document_type}</h4>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Business: {doc.business_name}</p>
+                      </div>
+                    </div>
+                    <span className={getStatusBadgeClass(doc.expiry_date)}>
+                      {new Date(doc.expiry_date) < new Date() ? 'EXPIRED' : 'VALID'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Expires: {new Date(doc.expiry_date).toLocaleDateString()}</span>
+                    <button 
+                      className="btn-icon-luxury" 
+                      style={{ padding: '4px 12px', fontSize: '0.65rem' }}
+                      onClick={() => navigate(`/business/${doc.cr_number}`)}
+                    >
+                      View Business
                     </button>
                   </div>
                 </div>

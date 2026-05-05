@@ -158,6 +158,7 @@ export const DashboardPage: React.FC = () => {
             cr_expiry: response.cr_expiry ? new Date(response.cr_expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A',
             latest_note: response.latest_note,
             document_summary: response.document_summary,
+            compliance_reasons: response.compliance_reasons,
             owner_name: response.owner_name,
             manager_name: response.manager_name,
             visit_count: response.visit_count,
@@ -731,6 +732,23 @@ export const DashboardPage: React.FC = () => {
                           </div>
                         ))}
                       </div>
+
+                      {/* NEW: Compliance Reasons in Dashboard */}
+                      {lastResult.status !== 'COMPLIANT' && lastResult.compliance_reasons && lastResult.compliance_reasons.length > 0 && (
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.05)', padding: '12px', borderRadius: '12px', marginBottom: '24px',
+                          border: '1px solid rgba(239, 68, 68, 0.1)'
+                        }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#ef4444', display: 'block', marginBottom: '6px' }}>FAILURE REASONS</span>
+                          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {lastResult.compliance_reasons.map((r: string, idx: number) => (
+                              <li key={idx} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', display: 'flex', gap: '6px' }}>
+                                <span style={{ color: '#ef4444' }}>•</span> {r}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {lastResult.latest_note && (
                         <div className="latest-note-snippet" style={{
