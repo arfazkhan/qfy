@@ -20,7 +20,10 @@ class Business(Base):
     business_nature = Column(String, nullable=True)
     
     # Identity Links
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True) # Representative
+    owner_type = Column(String, default="INDIVIDUAL") # INDIVIDUAL, COMPANY
+    owner_company_name = Column(String, nullable=True)
+    owner_cr_number = Column(String, nullable=True)
     authorized_person_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     

@@ -12,8 +12,30 @@ from ..middleware.auth import get_current_user, RoleChecker
 from ..schemas import UserRecord, UserBase, IDStatus
 from ..services.status_engine import calculate_id_status
 from ..db.models import User
-from ..db.business_models import BusinessMember
+from ..db.business_models import BusinessMember, BusinessActivity
 import uuid
+import json
+from typing import Optional
+
+async def log_activity(
+    db: AsyncSession,
+    business_id: uuid.UUID,
+    event_type: str,
+    description: str,
+    severity: str = "INFO",
+    operator_id: Optional[uuid.UUID] = None,
+    metadata: Optional[dict] = None
+):
+    activity = BusinessActivity(
+        business_id=business_id,
+        event_type=event_type,
+        description=description,
+        severity=severity,
+        operator_id=operator_id,
+        metadata_json=json.dumps(metadata) if metadata else None
+    )
+    db.add(activity)
+    await db.commit()
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -71,6 +93,21 @@ async def get_analytics(
         "new_today": new_today or 0
     }
 
+@router.get("/search", response_model=List[UserRecord])
+async def search_users(
+    query: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Search users by name or QID."""
+    stmt = select(User).where(
+        (User.name.ilike(f"%{query}%")) | 
+        (User.qid_number.ilike(f"%{query}%"))
+    ).limit(10)
+    res = await db.execute(stmt)
+    users = res.scalars().all()
+    return [UserRecord.model_validate(u) for u in users]
+
 @router.get("/{identifier}", response_model=dict)
 async def lookup_user(
     identifier: str, 
@@ -94,6 +131,84 @@ async def lookup_user(
         "grace_days_remaining": res["grace_days_remaining"],
         "is_expired": res["is_expired"]
     }
+
+@router.post("/link")
+async def link_user_to_business(
+    data: dict, # qid_number, business_id, role
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Link an existing user to a business with a specific role."""
+    qid = data.get("qid_number")
+    business_id = data.get("business_id")
+    role = data.get("role", "STAFF")
+    
+    if not qid or not business_id:
+        raise HTTPException(status_code=400, detail="Missing qid_number or business_id")
+        
+    user = await get_user_by_qid(db, qid)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Link
+    member_res = await db.execute(
+        select(BusinessMember).where(
+            BusinessMember.business_id == uuid.UUID(business_id),
+            BusinessMember.user_id == user.id
+        )
+    )
+    existing_member = member_res.scalars().first()
+    
+    if existing_member:
+        existing_member.role = role
+    else:
+        member = BusinessMember(
+            business_id=uuid.UUID(business_id),
+            user_id=user.id,
+            role=role
+        )
+        db.add(member)
+        
+    # If role is OWNER, update primary owner_id
+    if role == 'OWNER':
+        from ..db.business_models import Business
+        res = await db.execute(select(Business).where(Business.id == uuid.UUID(business_id)))
+        business = res.scalars().first()
+        if business:
+            logger.info(f"Linking OWNER to business: {business.owner_company_name} (Type: {business.owner_type})")
+            # If it's a company, only set as primary rep if none exists
+            if business.owner_type == 'COMPANY':
+                if not business.owner_id:
+                    logger.info(f"AUTO-DETECT: Setting INITIAL primary rep owner_id={user.id} and syncing employer={business.owner_company_name}")
+                    business.owner_id = user.id
+                    user.employer = business.owner_company_name
+                else:
+                    logger.info(f"LINKING: Adding co-owner {user.name} to corporate business (Primary remains {business.owner_id})")
+            # If it's individual and has no owner yet, set it
+            elif not business.owner_id:
+                logger.info(f"AUTO-DETECT: Setting primary owner_id={user.id} for INDIVIDUAL business")
+                business.owner_id = user.id
+                business.owner_type = 'INDIVIDUAL'
+        else:
+            logger.warning(f"Business {business_id} not found during OWNER linking")
+
+    await db.commit()
+    
+    # Log Activity
+    try:
+        await log_activity(
+            db=db,
+            business_id=uuid.UUID(business_id),
+            event_type="MEMBER_LINK",
+            description=f"Linked {user.name} to business as {role}",
+            operator_id=current_user.id if hasattr(current_user, 'id') else None,
+            metadata={"user_id": str(user.id), "role": role}
+        )
+    except Exception as e:
+        logger.error(f"Failed to log link activity: {e}")
+
+    logger.info(f"Link successful: {user.name} -> {role}")
+    return {"status": "ok", "message": f"Linked {user.name} to business as {role}"}
 
 @router.get("/", response_model=List[UserRecord])
 async def list_users(

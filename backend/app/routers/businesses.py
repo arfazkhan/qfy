@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
+import logging
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, delete
 from typing import List, Optional
 import os
 import uuid
@@ -91,8 +93,16 @@ async def search_business(
 
     status, reasons = compute_business_status(business, docs, owner, auth_person, manager)
     if status != business.status:
+        old_status = business.status
         business.status = status
         await db.commit()
+        
+        await log_activity(
+            db, business.id, "STATUS_CHANGE", 
+            f"Compliance status changed from {old_status} to {status}",
+            severity="WARNING" if status in ["NON_COMPLIANT", "INVALID"] else "INFO",
+            metadata={"old": old_status, "new": status}
+        )
         
     return {
         "id": str(business.id),
@@ -160,7 +170,8 @@ async def get_business_details(
             "role": role or "STAFF",
             "expiry_date": u.expiry_date.isoformat() if u.expiry_date else None,
             "nationality": u.nationality,
-            "mobile_number": u.mobile_number
+            "mobile_number": u.mobile_number,
+            "employer": u.employer
         }
 
     # Get owner info
@@ -168,6 +179,21 @@ async def get_business_details(
     if business.owner_id:
         owner_res = await db.execute(select(User).where(User.id == business.owner_id))
         owner_raw = owner_res.scalars().first()
+        # AUTO-SYNC: If company, ensure the primary rep's employer field is synced
+        if owner_raw and business.owner_type == 'COMPANY' and owner_raw.employer != business.owner_company_name:
+            old_employer = owner_raw.employer
+            logger.info(f"SYNC: Auto-healing primary rep employer for {owner_raw.name} -> {business.owner_company_name}")
+            owner_raw.employer = business.owner_company_name
+            await db.commit()
+            
+            await log_activity(
+                db=db,
+                business_id=business.id,
+                event_type="SYSTEM_SYNC",
+                description=f"Auto-synced primary representative employer for {owner_raw.name}",
+                severity="INFO",
+                metadata={"field": "employer", "old": old_employer, "new": business.owner_company_name}
+            )
     owner = person_to_dict(owner_raw, "OWNER")
         
     # Get authorized person info
@@ -234,6 +260,22 @@ async def get_business_details(
     
     # Add the extra members from business_members table
     for bm, u in members_raw:
+        # AUTO-SYNC: If company, ensure ONLY the PRIMARY OWNER has their employer synced
+        if business.owner_type == 'COMPANY' and u.id == business.owner_id and u.employer != business.owner_company_name:
+            old_employer = u.employer
+            logger.info(f"SYNC: Auto-healing primary representative {u.name} employer to {business.owner_company_name}")
+            u.employer = business.owner_company_name
+            await db.commit()
+            
+            await log_activity(
+                db=db,
+                business_id=business.id,
+                event_type="SYSTEM_SYNC",
+                description=f"Automated identity synchronization: Linked {u.name} as primary corporate representative",
+                severity="INFO",
+                metadata={"field": "employer", "old": old_employer, "new": business.owner_company_name}
+            )
+            
         m_dict = person_to_dict(u, bm.role)
         members.append(m_dict)
         seen_user_ids.add(m_dict["id"])
@@ -257,10 +299,18 @@ async def get_business_details(
     
     # Refresh status
     # Use raw objects for status computation
-    current_status, reasons = compute_business_status(business, docs_raw, owner_raw, auth_raw, manager_raw)
+    current_status, reasons = compute_business_status(business, docs_raw, members_raw, owner_raw, auth_raw, manager_raw)
     if current_status != business.status:
+        old_status = business.status
         business.status = current_status
         await db.commit()
+        
+        await log_activity(
+            db, business.id, "STATUS_CHANGE", 
+            f"Compliance status automatically updated from {old_status} to {current_status}",
+            severity="WARNING" if current_status in ["NON_COMPLIANT", "INVALID"] else "INFO",
+            metadata={"old": old_status, "new": current_status}
+        )
     
     return {
         "id": business.id.hex if isinstance(business.id, uuid.UUID) else str(business.id).replace('-', ''),
@@ -272,6 +322,10 @@ async def get_business_details(
         "mobile": business.mobile,
         "business_type": business.business_type,
         "business_nature": business.business_nature,
+        "owner_id": business.owner_id.hex if business.owner_id and isinstance(business.owner_id, uuid.UUID) else (str(business.owner_id).replace('-', '') if business.owner_id else None),
+        "owner_type": business.owner_type,
+        "owner_company_name": business.owner_company_name,
+        "owner_cr_number": business.owner_cr_number,
         "status": current_status,
         "compliance_reasons": reasons,
         "owner": owner,
@@ -329,15 +383,21 @@ async def update_business_profile(
         raise HTTPException(status_code=404, detail="Business not found")
 
     # Update fields
-    for field in ["name", "nationality", "address", "mobile", "business_type", "business_nature"]:
+    for field in ["name", "nationality", "address", "mobile", "business_type", "business_nature", "owner_type", "owner_company_name", "owner_cr_number"]:
         if field in update_data:
             setattr(business, field, update_data[field])
     
+    # Special handling for company owner representative if being updated via direct ID link
+    # (Though usually we handle this via upsert_customer)
+    if update_data.get("is_company_owner"):
+        business.owner_type = "COMPANY"
+        business.owner_company_name = update_data.get("owner_name")
+        business.owner_cr_number = update_data.get("owner_cr_number")
+
     if "cr_expiry_date" in update_data and update_data["cr_expiry_date"]:
         try:
             business.cr_expiry = datetime.strptime(update_data["cr_expiry_date"], "%Y-%m-%d").date()
         except ValueError:
-            # Fallback if already a date string or different format
             pass
 
     await log_activity(
@@ -348,6 +408,7 @@ async def update_business_profile(
     )
     
     await db.commit()
+    logger.info(f"PROFILE_UPDATE: Business {cr_number} updated by {current_user.username}. Data: {update_data}")
     return {"status": "ok", "message": "Profile updated successfully"}
 
 @router.post("/upsert")
@@ -360,12 +421,14 @@ async def upsert_business(
     res = await db.execute(select(Business).where(Business.cr_number == data.cr_number))
     business = res.scalars().first()
     
+    is_new = business is None
+    
     try:
         expiry_date = datetime.strptime(data.cr_expiry_date, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format for cr_expiry_date. Use YYYY-MM-DD.")
     
-    if business:
+    if not is_new:
         business.name = data.name
         business.cr_expiry = expiry_date
         business.nationality = data.nationality
@@ -395,6 +458,16 @@ async def upsert_business(
         
     await db.commit()
     await db.refresh(business)
+    
+    # Log Activity
+    await log_activity(
+        db, business.id, 
+        "BUSINESS_REGISTERED" if is_new else "PROFILE_UPDATE", 
+        f"Business record {'created' if is_new else 'updated'} via registration form",
+        operator_id=current_user.id if hasattr(current_user, 'id') else None,
+        metadata={"cr_number": data.cr_number, "is_new": is_new}
+    )
+    logger.info(f"UPSERT: {'Updated' if business else 'Created'} business {data.cr_number}. Owner ID: {data.owner_id}")
 
     # Create initial note if provided
     if data.initial_note:
@@ -405,6 +478,7 @@ async def upsert_business(
         )
         db.add(note)
         await db.commit()
+        logger.info(f"UPSERT: Added initial note for {data.cr_number}")
 
     return business
 
@@ -486,6 +560,7 @@ async def add_or_update_document(
         
     
     await db.commit()
+    logger.info(f"DOC_EVENT: Business {cr_number} - {document_type} processed (status: {is_available}, file: {original_filename})")
     return {"status": "ok", "file_url": doc.file_url}
 
 @router.post("/{cr_number}/notes")
@@ -572,3 +647,126 @@ async def delete_business(
     await db.delete(business)
     await db.commit()
     return {"status": "success", "message": f"Business {cr_number} deleted successfully"}
+@router.delete("/{cr_number}/members/{user_id}")
+async def unlink_member(cr_number: str, user_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
+    # 1. Find Business
+    res = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = res.scalar_one_or_none()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    # 2. Check if this is the corporate entity unlinking (user_id='corporate')
+    is_corporate_unlink = user_id == "corporate"
+    target_name = "Corporate Entity"
+
+    if is_corporate_unlink:
+        business.owner_type = "INDIVIDUAL"
+        business.owner_company_name = None
+        business.owner_cr_number = None
+        business.is_company_owner = False
+        # Note: We keep the representative as a regular owner if they exist
+    else:
+        # 3. Delete from BusinessMember
+        try:
+            u_id = uuid.UUID(user_id)
+        except ValueError:
+             raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+        await db.execute(
+            delete(BusinessMember)
+            .where(BusinessMember.business_id == business.id)
+            .where(BusinessMember.user_id == u_id)
+        )
+        
+        # Get user name for logging
+        u_res = await db.execute(select(User).where(User.id == u_id))
+        u_obj = u_res.scalars().first()
+        target_name = u_obj.name if u_obj else user_id
+
+        # 4. Clear primary ID links if they match
+        if business.owner_id == u_id:
+            business.owner_id = None
+        if business.authorized_person_id == u_id:
+            business.authorized_person_id = None
+        if business.manager_id == u_id:
+            business.manager_id = None
+
+    await db.commit()
+    
+    # Log Activity
+    try:
+        await log_activity(
+            db, business.id, "MEMBER_UNLINK", 
+            f"Unlinked {target_name} from business",
+            operator_id=current_user.id if hasattr(current_user, 'id') else None,
+            metadata={"user_id": user_id, "is_corporate": is_corporate_unlink}
+        )
+    except Exception as e:
+        logger.error(f"Unlink log failed: {e}")
+    
+    # 5. Refresh status
+    # Get everything again for status computation
+    res = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = res.scalar_one()
+    
+    docs_res = await db.execute(select(BusinessDocument).where(BusinessDocument.business_id == business.id))
+    docs_raw = docs_res.scalars().all()
+    
+    members_res = await db.execute(
+        select(BusinessMember, User)
+        .join(User, BusinessMember.user_id == User.id)
+        .where(BusinessMember.business_id == business.id)
+    )
+    members_raw = members_res.all()
+    
+    # Get legacy objects for fallback
+    owner_raw = await db.get(User, business.owner_id) if business.owner_id else None
+    auth_raw = await db.get(User, business.authorized_person_id) if business.authorized_person_id else None
+    manager_raw = await db.get(User, business.manager_id) if business.manager_id else None
+
+    current_status, reasons = compute_business_status(business, docs_raw, members_raw, owner_raw, auth_raw, manager_raw)
+    business.status = current_status
+    await db.commit()
+    
+    return {"message": "Member unlinked successfully", "status": current_status}
+
+@router.put("/{cr_number}/set-representative/{user_id}")
+async def set_business_representative(
+    cr_number: str,
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Explicitly set a specific linked member as the primary corporate representative."""
+    result = await db.execute(select(Business).where(Business.cr_number == cr_number))
+    business = result.scalars().first()
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+
+    # Handle hex strings or UUIDs
+    try:
+        if '-' in user_id:
+            u_id = uuid.UUID(user_id)
+        else:
+            u_id = uuid.UUID(hex=user_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    user = await db.get(User, u_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update business primary identity
+    business.owner_id = user.id
+    business.owner_type = 'COMPANY'
+    
+    await db.commit()
+    
+    # Log activity
+    await log_activity(
+        db, business.id, "PROFILE_UPDATE", 
+        f"Set {user.name} as Primary Corporate Representative",
+        operator_id=current_user.id if hasattr(current_user, 'id') else None
+    )
+    
+    return {"status": "success", "message": f"Set {user.name} as primary representative"}

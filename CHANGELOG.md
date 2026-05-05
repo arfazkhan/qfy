@@ -2,6 +2,28 @@
 
 All notable changes to the Q-FY project will be documented in this file.
 
+## [v1.9.1-Deterministic-Identity] - 2026-05-05
+
+### 🚀 Added
+- **Deterministic Identity Engine**: Implemented a server-side "Self-Healing" sync that automatically detects and enforces the primary representative's `employer` status based on corporate links.
+- **Document Preview Logic**: Added a high-fidelity "PREVIEW EXISTING DOC" feature in the Company Details modal, allowing operators to verify current CR files before replacement.
+- **Enhanced Action Suite**: Upgraded the "People & Identities" modal with a dual-action system: `Eye` icons for instant document/profile viewing and `Edit3` (Pencil) icons for direct record modification.
+- **Forensic Sync Tracking**: Connected the self-healing identity engine to the `BusinessActivity` timeline, logging `SYSTEM_SYNC` events whenever a representative's corporate affiliation is automatically corrected.
+- **Comprehensive Audit Trail**: Hardened the activity engine to capture 100% of administrative mutations, including `MEMBER_LINK`, `MEMBER_UNLINK`, `STATUS_CHANGE`, and `REPORT_DOWNLOAD`, ensuring a complete paperless audit trail for every business.
+
+### 🛠️ Changed
+- **Identity Hierarchy Hardening**: Restricted corporate `employer` synchronization exclusively to the designated primary owner (`owner_id`), preventing "data drift" for secondary owners.
+- **UI Labeling Precision**: Implemented a color-coded identity system: **REPRESENTATIVE (OWNER)** (Blue) for corporate reps and **INDIVIDUAL OWNER** (Gold) for linked individuals.
+- **Workspace De-cluttering**: Centralized "Unlink" and "Edit" actions within the People Modal table, stripping redundant buttons from the dashboard stakeholder cards for a cleaner layout.
+- **Icon Standardization**: Migrated all edit actions to use the `Edit3` Lucide icon for UI consistency across the platform.
+
+### 🐞 Fixed
+- **API Serialization Gap**: Resolved a critical bug in `person_to_dict` where the `employer` field was missing from stakeholder payloads, breaking frontend identity logic.
+- **State Hydration Integrity**: Fixed a race condition where the UI would report "Record not found" during rapid business detail refreshes.
+- **Lint & Hygiene**: Purged 10+ unused variables and non-functional methods (including `setSelectedPerson` and `handleSetRepresentative`) and standardized identity scanning logic to eliminate IDE errors.
+
+---
+
 ## [v1.9.0-Intelligence-Dashboard-UX] - 2026-05-05
 
 ### 🚀 Added

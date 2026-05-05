@@ -307,7 +307,8 @@ export const ScanPage: React.FC = () => {
         mobile_number: `+${mobileNumber}`,
         force: false,
         link_business_id: linkBusinessId,
-        link_role: linkRole
+        link_role: linkRole,
+        employer: new URLSearchParams(window.location.search).get('employer') || editedData.employer
       };
 
       try {
@@ -318,7 +319,11 @@ export const ScanPage: React.FC = () => {
 
         setIsMobileModalOpen(false);
         setIsSuccess(true);
-        window.parent.postMessage({ type: 'SCAN_COMPLETE' }, '*');
+
+        if (isEmbedded) {
+          window.parent.postMessage({ type: 'SCAN_COMPLETE' }, '*');
+          return;
+        }
 
         // Brief pause for the success message to be seen
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -362,6 +367,12 @@ export const ScanPage: React.FC = () => {
 
       setDuplicateData(null);
       setIsSuccess(true);
+
+      if (isEmbedded) {
+        window.parent.postMessage({ type: 'SCAN_COMPLETE' }, '*');
+        return;
+      }
+
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       const returnUrl = new URLSearchParams(window.location.search).get('returnUrl');
