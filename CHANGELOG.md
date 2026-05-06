@@ -1,6 +1,34 @@
 # Changelog
 
 All notable changes to the Q-FY project will be documented in this file.
+ 
+## [v2.0.0-Forensic-Registration-MVP] - 2026-05-06
+ 
+### 🚀 Added
+- **Forensic Grouped Registration**: Overhauled the business registration UI into three specialized clusters: **Commercial License**, **Authorized Signatories**, and **Trade License**.
+- **Integrated Identity Scanner**: Embedded the production-grade hardware scan flow (`/scan?embedded=true`) directly into the registration wizard via an Iframe bridge with `postMessage` synchronization.
+- **Multi-Stakeholder Wizard**: A sophisticated "Add Owner" workflow supporting both Individual and Corporate entities with nested representative resolution.
+- **Interactive Scan Modals**: High-visibility "SCAN ID" triggers with forensic animations (scan-line effect, progress tracking) for all identity search fields.
+- **Identification Documents Gallery**: Added a sleek document preview section to `IndividualResultCard` supporting both front and back QID images.
+- **Dynamic Expiry Status System**: Implemented high-visibility, color-coded expiry logic (**Red** for expired, **Gold** for <30 days, **Green** for active) across both QID and CR records.
+- **LuxuryDropdown Component**: Custom-built glassmorphism dropdowns for Business Type, Nature, and Nationality with smooth focus states and hover effects.
+- **Cinematic Feedback Engine**: Integrated `success-pulse` glows and `pop-in` entrance animations for visit logging and document uploads.
+- **Backend Visit API**: Launched `POST /api/v1/businesses/{id}/visit` to track physical forensic activity and update business interaction counters.
+ 
+### 🛠️ Changed
+- **Unified Stakeholder Layout**: Reorganized result cards to show a 3-column grid featuring Mobile, Nationality, and high-visibility Expiry status.
+- **Standardized Document Capture**: Aligned the Trade License upload box with Authorization Letters and Establishment Cards, including compact `.doc-upload-box` styling and expanded column-width layouts.
+- **Visual Expiry Overhaul**: Upgraded date displays to `1.6rem` bold weight with high-contrast labels ("VALID UNTIL", "GRACE PERIOD") and demoted "days remaining" to a sub-line.
+- **Status Badge Refinement**: Standardized active identity labels to "ID VALID" for clarity and authority.
+- **Enhanced Document Previews**: Bumped document scan heights to `220px` with `objectFit: contain` for crystal-clear, non-cropped forensic inspection.
+- **Compliance Sidebar Expansion**: The sidebar now tracks nested owner requirements and document statuses, dynamically gating the "Review & Submit" action.
+ 
+### 🐞 Fixed
+- **NameError Resolution**: Fixed missing `List` import from `typing` in `schemas.py` that was crashing the Uvicorn server.
+- **Backend Router Patching**: Resolved a `TypeError` and 500 error in the visit logging route caused by malformed identifier strings.
+- **Frontend Dependency Injection**: Installed the missing `uuid` dependency to resolve the registration form import error.
+- **State Integrity Restoration**: Patched a UI state reset bug and pruned 20+ unused imports/variables in `BusinessFormPage.tsx` to stabilize the registration portal.
+- **CORS & Silent Failures**: Squashed a silent `TypeError` that was incorrectly triggering CORS error messages during identity lookups.
 
 ## [v1.9.1-Deterministic-Identity] - 2026-05-05
 

@@ -91,7 +91,7 @@ async def search_business(
         manager_res = await db.execute(select(User).where(User.id == business.manager_id))
         manager = manager_res.scalars().first()
 
-    status, reasons = compute_business_status(business, docs, owner, auth_person, manager)
+    status, reasons = compute_business_status(business, docs, owner=owner, authorized_person=auth_person, manager=manager)
     if status != business.status:
         old_status = business.status
         business.status = status
@@ -299,7 +299,14 @@ async def get_business_details(
     
     # Refresh status
     # Use raw objects for status computation
-    current_status, reasons = compute_business_status(business, docs_raw, members_raw, owner_raw, auth_raw, manager_raw)
+    current_status, reasons = compute_business_status(
+        business, 
+        docs_raw, 
+        members_raw=members_raw, 
+        owner=owner_raw, 
+        authorized_person=auth_raw, 
+        manager=manager_raw
+    )
     if current_status != business.status:
         old_status = business.status
         business.status = current_status
@@ -436,10 +443,24 @@ async def upsert_business(
         business.mobile = data.mobile
         business.business_type = data.business_type
         business.business_nature = data.business_nature
-        business.owner_id = data.owner_id
-        business.authorized_person_id = data.authorized_person_id
+        
+        # Set primary links (first in list)
+        if data.owners:
+            business.owner_id = data.owners[0].get('id')
+            business.owner_type = data.owners[0].get('type', 'INDIVIDUAL').upper()
+            if business.owner_type == 'CORPORATE':
+                business.owner_company_name = data.owners[0].get('name')
+                business.owner_cr_number = data.owners[0].get('cr_number')
+        
+        if data.authorized_signatories:
+            business.authorized_person_id = data.authorized_signatories[0]
+            
         business.manager_id = data.manager_id
     else:
+        # Create new business
+        primary_owner_id = data.owners[0].get('id') if data.owners else None
+        primary_auth_id = data.authorized_signatories[0] if data.authorized_signatories else None
+        
         business = Business(
             name=data.name,
             cr_number=data.cr_number,
@@ -449,8 +470,11 @@ async def upsert_business(
             mobile=data.mobile,
             business_type=data.business_type,
             business_nature=data.business_nature,
-            owner_id=data.owner_id,
-            authorized_person_id=data.authorized_person_id,
+            owner_id=primary_owner_id,
+            owner_type=data.owners[0].get('type', 'INDIVIDUAL').upper() if data.owners else 'INDIVIDUAL',
+            owner_company_name=data.owners[0].get('name') if data.owners and data.owners[0].get('type') == 'corporate' else None,
+            owner_cr_number=data.owners[0].get('cr_number') if data.owners and data.owners[0].get('type') == 'corporate' else None,
+            authorized_person_id=primary_auth_id,
             manager_id=data.manager_id,
             status="INVALID" # Initial state
         )
@@ -458,6 +482,39 @@ async def upsert_business(
         
     await db.commit()
     await db.refresh(business)
+    
+    # Update Business Members (Bulk)
+    # 1. Clear existing members
+    await db.execute(delete(BusinessMember).where(BusinessMember.business_id == business.id))
+    
+    # 2. Add Owners
+    for owner in data.owners:
+        member = BusinessMember(
+            business_id=business.id,
+            user_id=owner.get('id'), # This is the individual ID (even for corporate owners' reps)
+            role="OWNER"
+        )
+        db.add(member)
+        
+    # 3. Add Authorized Signatories
+    for auth_id in data.authorized_signatories:
+        member = BusinessMember(
+            business_id=business.id,
+            user_id=auth_id,
+            role="AUTHORIZED"
+        )
+        db.add(member)
+        
+    # 4. Add Manager
+    if data.manager_id:
+        member = BusinessMember(
+            business_id=business.id,
+            user_id=data.manager_id,
+            role="MANAGER"
+        )
+        db.add(member)
+        
+    await db.commit()
     
     # Log Activity
     await log_activity(
@@ -467,19 +524,7 @@ async def upsert_business(
         operator_id=current_user.id if hasattr(current_user, 'id') else None,
         metadata={"cr_number": data.cr_number, "is_new": is_new}
     )
-    logger.info(f"UPSERT: {'Updated' if business else 'Created'} business {data.cr_number}. Owner ID: {data.owner_id}")
-
-    # Create initial note if provided
-    if data.initial_note:
-        note = BusinessNote(
-            business_id=business.id,
-            content=data.initial_note,
-            operator_id=current_user.id if hasattr(current_user, 'id') else None
-        )
-        db.add(note)
-        await db.commit()
-        logger.info(f"UPSERT: Added initial note for {data.cr_number}")
-
+    
     return business
 
 from ..utils.storage import save_business_document
@@ -592,6 +637,40 @@ async def add_business_note(
     
     await db.commit()
     return {"status": "ok"}
+    
+@router.post("/{business_id}/visit")
+async def mark_business_visit(
+    business_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Log a new visit for a business."""
+    # Handle UUID or hex string
+    try:
+        b_id = uuid.UUID(business_id) if '-' in business_id else uuid.UUID(hex=business_id)
+    except:
+        # Fallback to search by CR if it's not a valid UUID format (e.g. if front-end passed CR)
+        res = await db.execute(select(Business).where(Business.cr_number == business_id))
+        business = res.scalars().first()
+        if not business:
+            raise HTTPException(status_code=400, detail="Invalid business ID or CR")
+    else:
+        business = await db.get(Business, b_id)
+        
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+        
+    business.visit_count += 1
+    business.last_seen_at = datetime.utcnow()
+    
+    await log_activity(
+        db, business.id, "VISIT", 
+        f"Business visit logged by {current_user.username}",
+        operator_id=current_user.id
+    )
+    
+    await db.commit()
+    return {"status": "ok", "visit_count": business.visit_count}
 
 @router.delete("/{cr_number}/notes/{note_id}")
 async def delete_business_note(

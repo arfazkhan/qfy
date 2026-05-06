@@ -321,7 +321,10 @@ export const ScanPage: React.FC = () => {
         setIsSuccess(true);
 
         if (isEmbedded) {
-          window.parent.postMessage({ type: 'SCAN_COMPLETE' }, '*');
+          window.parent.postMessage({ 
+            type: 'SCAN_COMPLETE', 
+            payload: userResponse.user || userResponse 
+          }, '*');
           return;
         }
 

@@ -100,10 +100,12 @@ export const DashboardPage: React.FC = () => {
         : `/businesses/${lastResult.id}/visit`;
         
       await ApiClient.post(endpoint, {});
-      setIsVisitLogged(true);
+      
       // Refresh stats and user data to show updated counts
-      fetchDashboardStats();
-      handleSearch();
+      await fetchDashboardStats();
+      await handleSearch();
+      
+      setIsVisitLogged(true);
     } catch (err) {
       console.error("Failed to log visit", err);
       alert('Failed to log visit. Please try again.');
@@ -199,6 +201,7 @@ export const DashboardPage: React.FC = () => {
           lastSeen: user.last_seen_at ? new Date(user.last_seen_at).toLocaleDateString() : 'Never',
           visits: user.visit_count,
           frontImage: user.front_image,
+          backImage: user.back_image,
           mobile_number: user.mobile_number,
           errorMessage: response.status_message,
           isExpired: response.is_expired
@@ -677,7 +680,7 @@ export const DashboardPage: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="result-card-modern business-summary" style={{ padding: '24px' }}>
+                    <div className={`result-card-modern business-summary ${isVisitLogged ? 'animate-success-pulse' : ''}`} style={{ padding: '24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                           <div style={{
@@ -692,7 +695,7 @@ export const DashboardPage: React.FC = () => {
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>CR Number: {lastResult.cr_number}</p>
                           </div>
                         </div>
-                        <div className={`status-pill ${lastResult.status.toLowerCase().replace('_', '-')}`} style={{
+                        <div className={`status-pill ${lastResult.status.toLowerCase().replace('_', '-')} ${isVisitLogged ? 'animate-pop-in' : ''}`} style={{
                           padding: '6px 14px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800,
                           background: lastResult.status === 'COMPLIANT' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                           color: lastResult.status === 'COMPLIANT' ? '#10b981' : '#ef4444',

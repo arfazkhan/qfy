@@ -40,12 +40,11 @@ export const LookupPage: React.FC = () => {
   const viewParam = searchParams.get('view');
   const crParam = searchParams.get('cr');
 
-  const [searchType, setSearchType] = useState<'individual' | 'business' | 'documents'>(
-    viewParam === 'docs' ? 'documents' : viewParam === 'people' ? 'individual' : 'individual'
+  const [searchType, setSearchType] = useState<'individual' | 'business'>(
+    viewParam === 'people' ? 'individual' : 'individual'
   );
   const [results, setResults] = useState<UserResult[]>([]);
   const [businessResults, setBusinessResults] = useState<BusinessResult[]>([]);
-  const [documentResults, setDocumentResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Filters
@@ -73,11 +72,6 @@ export const LookupPage: React.FC = () => {
         if (crParam) params.cr_number = crParam;
         const data = await ApiClient.get<BusinessResult[]>('/lookup/businesses', params);
         setBusinessResults(data);
-      } else {
-        // documents
-        if (crParam) params.cr_number = crParam;
-        const data = await ApiClient.get<any[]>('/lookup/documents', params);
-        setDocumentResults(data);
       }
     } catch (err) {
       console.error("Search failed", err);
@@ -103,6 +97,19 @@ export const LookupPage: React.FC = () => {
     if (days < 0) return 'status-badge-invalid';
     if (days <= 30) return 'status-badge-expiring_soon';
     return 'status-badge-active';
+  };
+
+  const getDateColor = (expiryStr: string) => {
+    if (!expiryStr) return 'var(--text-muted)';
+    const expiry = new Date(expiryStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = expiry.getTime() - today.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    if (days < 0) return '#ef4444'; // Red for expired
+    if (days <= 30) return '#fbbf24'; // Gold for expiring soon
+    return '#10b981'; // Green for active
   };
 
   const getBusinessStatusColor = (status: string) => {
@@ -180,28 +187,6 @@ export const LookupPage: React.FC = () => {
               >
                 <Building2 size={14} />
                 BUSINESS
-              </button>
-              <button
-                className={`tab-btn ${searchType === 'documents' ? 'active' : ''}`}
-                onClick={() => setSearchType('documents')}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: '8px',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: searchType === 'documents' ? 'var(--gold-primary)' : 'transparent',
-                  color: searchType === 'documents' ? '#000' : 'var(--text-muted)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Shield size={14} />
-                DOCUMENTS
               </button>
             </div>
           </div>
@@ -391,19 +376,26 @@ export const LookupPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>MOBILE</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gold-primary)', fontWeight: 700, fontSize: '0.75rem' }}>
-                        <Hash size={12} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--gold-primary)', fontWeight: 700, fontSize: '0.7rem' }}>
+                        <Hash size={10} />
                         {user.mobile_number || 'N/A'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>NATIONALITY</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', fontWeight: 600, fontSize: '0.75rem' }}>
-                        <Globe size={12} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#fff', fontWeight: 600, fontSize: '0.7rem' }}>
+                        <Globe size={10} />
                         {user.nationality}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>QID EXPIRY</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: getDateColor(user.expiry_date), fontWeight: 700, fontSize: '0.7rem' }}>
+                        <Clock size={10} />
+                        {user.expiry_date ? new Date(user.expiry_date).toLocaleDateString() : 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -418,7 +410,7 @@ export const LookupPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )) : searchType === 'business' ? businessResults.map((biz) => (
+              )) : businessResults.map((biz) => (
                 <div key={biz.id} className="luxury-card animate-scale-up" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', gap: '16px' }}>
                     <div style={{
@@ -464,7 +456,7 @@ export const LookupPage: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>CR EXPIRY</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gold-primary)', fontWeight: 700, fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: getDateColor(biz.cr_expiry_date), fontWeight: 700, fontSize: '0.75rem' }}>
                         <Clock size={12} />
                         {new Date(biz.cr_expiry_date).toLocaleDateString()}
                       </div>
@@ -478,33 +470,6 @@ export const LookupPage: React.FC = () => {
                       style={{ background: 'rgba(59, 130, 246, 0.1)', border: 'none', color: '#3b82f6', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
                     >
                       <ChevronRight size={18} />
-                    </button>
-                  </div>
-                </div>
-              )) : documentResults.map((doc, idx) => (
-                <div key={idx} className="luxury-card animate-scale-up" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
-                        <Shield size={18} color="var(--gold-primary)" />
-                      </div>
-                      <div>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>{doc.document_type}</h4>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Business: {doc.business_name}</p>
-                      </div>
-                    </div>
-                    <span className={getStatusBadgeClass(doc.expiry_date)}>
-                      {new Date(doc.expiry_date) < new Date() ? 'EXPIRED' : 'VALID'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Expires: {new Date(doc.expiry_date).toLocaleDateString()}</span>
-                    <button 
-                      className="btn-icon-luxury" 
-                      style={{ padding: '4px 12px', fontSize: '0.65rem' }}
-                      onClick={() => navigate(`/business/${doc.cr_number}`)}
-                    >
-                      View Business
                     </button>
                   </div>
                 </div>

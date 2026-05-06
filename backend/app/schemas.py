@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime, date
 from uuid import UUID
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 class IDStatus(str, Enum):
     ACTIVE = "ACTIVE"
@@ -69,15 +69,16 @@ class BusinessCreate(BaseModel):
     cr_number: str
     cr_expiry_date: str # ISO Date string
     
-    # New Fields
+    # Optional Fields
     nationality: Optional[str] = None
     address: Optional[str] = None
     mobile: Optional[str] = None
     business_type: Optional[str] = None
     business_nature: Optional[str] = None
     
-    owner_id: Optional[UUID] = None
-    authorized_person_id: Optional[UUID] = None
+    # Structured Links
+    owners: List[dict] = [] # List of {id: UUID, type: 'individual'|'corporate', nested_owner_id?: UUID}
+    authorized_signatories: List[UUID] = []
     manager_id: Optional[UUID] = None
     initial_note: Optional[str] = None
 

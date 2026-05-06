@@ -6,6 +6,7 @@ import {
   Search, 
   Scan, 
   RefreshCcw,
+  Clock,
   Hash
 } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export interface IndividualResult {
   lastSeen?: string;
   visits?: number;
   frontImage?: string;
+  backImage?: string;
   mobile_number?: string;
   errorMessage?: string;
   type?: 'individual' | 'business';
@@ -52,7 +54,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
         return (
           <div className="badge-active-modern">
             <CheckCircle2 size={12} />
-            {result.status === 'COMPLIANT' ? 'COMPLIANT' : 'ACTIVE'}
+            {result.status === 'COMPLIANT' ? 'COMPLIANT' : 'ID VALID'}
           </div>
         );
       case 'EXPIRING_SOON':
@@ -88,34 +90,46 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
       case 'ACTIVE':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Expires in</p>
-            <h4 style={{ fontSize: '1.4rem', color: 'var(--success)', fontWeight: 800, margin: '8px 0' }}>{result.daysLeft} days</h4>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Expiry Date: {result.expiry}</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>VALID UNTIL</p>
+            <h4 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 900, margin: '4px 0' }}>{result.expiry}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--success)', fontWeight: 700, fontSize: '0.85rem' }}>
+              <CheckCircle2 size={14} />
+              {result.daysLeft} days remaining
+            </div>
           </div>
         );
       case 'EXPIRING_SOON':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Expires in</p>
-            <h4 style={{ fontSize: '1.4rem', color: '#f59e0b', fontWeight: 800, margin: '8px 0' }}>{result.daysLeft} days</h4>
-            <p style={{ fontSize: '0.75rem', color: '#f59e0b', opacity: 0.8 }}>Expiry Date: {result.expiry}</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>EXPIRING SOON</p>
+            <h4 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 900, margin: '4px 0' }}>{result.expiry}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, fontSize: '0.85rem' }}>
+              <Clock size={14} />
+              {result.daysLeft} days remaining
+            </div>
           </div>
         );
       case 'GRACE_PERIOD':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Inactive</p>
-            <h4 style={{ fontSize: '1.4rem', color: '#f59e0b', fontWeight: 800, margin: '8px 0' }}>{result.daysExpired} days ago</h4>
-            <p style={{ fontSize: '0.75rem', color: '#f59e0b', opacity: 0.8 }}>Grace period: {result.graceDaysRemaining} days remaining</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>GRACE PERIOD</p>
+            <h4 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 900, margin: '4px 0' }}>{result.expiry}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', fontWeight: 700, fontSize: '0.85rem' }}>
+              <RefreshCcw size={14} />
+              {result.graceDaysRemaining} grace days left
+            </div>
           </div>
         );
       case 'INVALID':
       case 'NON_COMPLIANT':
         return (
           <div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Status</p>
-            <h4 style={{ fontSize: '1.4rem', color: 'var(--danger)', fontWeight: 800, margin: '8px 0' }}>{result.status === 'NON_COMPLIANT' ? 'NON-COMPLIANT' : `${result.daysExpired} days ago`}</h4>
-            <p style={{ fontSize: '0.75rem', color: 'var(--danger)', opacity: 0.8 }}>{result.status === 'NON_COMPLIANT' ? 'Compliance Failed' : `Expiry Date: ${result.expiry}`}</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>STATUS</p>
+            <h4 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 900, margin: '4px 0' }}>{result.status === 'NON_COMPLIANT' ? 'NON-COMPLIANT' : result.expiry}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontWeight: 700, fontSize: '0.85rem' }}>
+              <AlertTriangle size={14} />
+              {result.status === 'NON_COMPLIANT' ? 'Compliance Failed' : `Expired ${result.daysExpired} days ago`}
+            </div>
           </div>
         );
       case 'COMPLIANT':
@@ -209,7 +223,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
   }
 
   return (
-    <div className={`result-card-modern ${getCardStatusClass()}`} style={{ padding: '24px' }}>
+    <div className={`result-card-modern ${getCardStatusClass()} ${isVisitLogged ? 'animate-success-pulse' : ''} animate-scale-up`} style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <div 
@@ -251,7 +265,7 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>QID: {result.qid}</p>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className={isVisitLogged ? 'animate-pop-in' : ''}>
           {getStatusBadge()}
         </div>
       </div>
@@ -267,6 +281,64 @@ export const IndividualResultCard: React.FC<IndividualResultCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* QID Document Images */}
+      {(result.frontImage || result.backImage) && (
+        <div style={{ marginBottom: '32px' }}>
+          <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', marginBottom: '12px', textTransform: 'uppercase' }}>IDENTIFICATION DOCUMENTS</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ position: 'relative' }}>
+              <div style={{ 
+                width: '100%', 
+                height: '220px', 
+                background: 'rgba(255,255,255,0.03)', 
+                borderRadius: '12px', 
+                border: '1px solid var(--glass-border)',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {result.frontImage ? (
+                  <img 
+                    src={result.frontImage.startsWith('http') ? result.frontImage : `http://localhost:8000${result.frontImage}`} 
+                    alt="QID Front" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Front Not Available</div>
+                )}
+              </div>
+              <span style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700 }}>FRONT</span>
+            </div>
+            
+            <div style={{ position: 'relative' }}>
+              <div style={{ 
+                width: '100%', 
+                height: '220px', 
+                background: 'rgba(255,255,255,0.03)', 
+                borderRadius: '12px', 
+                border: '1px solid var(--glass-border)',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {result.backImage ? (
+                  <img 
+                    src={result.backImage.startsWith('http') ? result.backImage : `http://localhost:8000${result.backImage}`} 
+                    alt="QID Back" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>Back Not Available</div>
+                )}
+              </div>
+              <span style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700 }}>BACK</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '12px' }}>
         {result.status !== 'INVALID' && (
