@@ -11,7 +11,9 @@ class IDStatus(str, Enum):
     INVALID = "INVALID"
 
 class UserBase(BaseModel):
-    qid_number: str
+    qid_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    id_type: Optional[str] = "QID" # QID, PASSPORT
     name: str
     expiry_date: date
     name_ar: Optional[str] = None
@@ -25,20 +27,32 @@ class UserBase(BaseModel):
     mobile_number: Optional[str] = None
     storage_mode: str = "LOCAL"
 
+class BusinessAssociation(BaseModel):
+    cr_number: str
+    name: str
+    role: str
+
 class UserRecord(UserBase):
     id: UUID
     visit_count: int
     last_seen_at: datetime
     created_at: datetime
+    associations: List[BusinessAssociation] = []
     
     model_config = ConfigDict(from_attributes=True)
 
 class UserScanData(BaseModel):
-    qid_number: str
+    qid_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    id_type: Optional[str] = "QID"
     name: str
-    expiry_date: str # OCR returns string usually
+    expiry_date: str
     dob: Optional[str] = None
     nationality: Optional[str] = None
+    occupation: Optional[str] = None
+    employer: Optional[str] = None
+    residency_type: Optional[str] = None
+    passport_expiry: Optional[str] = None
 
 class ScanResponse(BaseModel):
     user: Optional[UserScanData] = None
@@ -49,6 +63,7 @@ class ScanResponse(BaseModel):
     ocr_confidence: float
     extracted_fields: dict
     processed_image: Optional[str] = None
+    processed_back_image: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -90,3 +105,12 @@ class BusinessDocumentCreate(BaseModel):
 
 class BusinessNoteCreate(BaseModel):
     content: str
+
+class Corner(BaseModel):
+    x: int
+    y: int
+
+class CornerDetectionResponse(BaseModel):
+    corners: List[Corner]
+    width: int
+    height: int

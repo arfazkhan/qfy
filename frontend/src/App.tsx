@@ -8,6 +8,7 @@ import { LookupPage } from './pages/LookupPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { BusinessDetailPage } from './pages/BusinessDetailPage';
 import { BusinessFormPage } from './pages/BusinessFormPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useAuthStore } from './store/authStore';
 import { MainLayout } from './components/MainLayout';
 import './styles/main.css';
@@ -36,6 +37,7 @@ function App() {
           {/* Business Compliance Routes */}
           <Route path="/business/:id" element={<BusinessDetailPage />} />
           <Route path="/business/add" element={<BusinessFormPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Route>

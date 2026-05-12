@@ -638,11 +638,16 @@ export const BusinessDetailPage: React.FC = () => {
               )}
 
               {[
-                { label: 'BUSINESS OWNER', role: 'OWNER' },
-                { label: 'MANAGER INCHARGE', role: 'MANAGER' },
-                { label: 'AUTHORIZED PERSON', role: 'AUTHORIZED' }
-              ].map(({ label, role }) => {
-                const members = (business.members || []).filter((m: any) => m.role === role);
+                { label: 'BUSINESS OWNER', role: 'OWNER', fallback: business.owner },
+                { label: 'MANAGER INCHARGE', role: 'MANAGER', fallback: business.manager },
+                { label: 'AUTHORIZED PERSON', role: 'AUTHORIZED', fallback: business.authorized_person }
+              ].map(({ label, role, fallback }) => {
+                let members = (business.members || []).filter((m: any) => m.role === role);
+                
+                // If not in members list, use the direct field as fallback
+                if (members.length === 0 && fallback) {
+                  members = [fallback];
+                }
                 
                 if (members.length === 0) {
                   return (
@@ -675,22 +680,30 @@ export const BusinessDetailPage: React.FC = () => {
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                           <div style={{
                             width: '40px', height: '40px', borderRadius: '12px',
-                            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
+                            background: role === 'AUTHORIZED' ? 'rgba(59, 130, 246, 0.1)' : (role === 'MANAGER' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 215, 0, 0.1)'), 
+                            border: `1px solid ${role === 'AUTHORIZED' ? 'rgba(59, 130, 246, 0.2)' : (role === 'MANAGER' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 215, 0, 0.2)')}`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                           }}>
-                            {role === 'AUTHORIZED' ? <ShieldCheck size={20} color="#3b82f6" /> : <User size={20} color="var(--gold-primary)" />}
+                            {role === 'AUTHORIZED' ? <ShieldCheck size={20} color="#3b82f6" /> : (role === 'MANAGER' ? <User size={20} color="#10b981" /> : <User size={20} color="var(--gold-primary)" />)}
                           </div>
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                              <div style={{ fontSize: '0.6rem', fontWeight: 900, color: role === 'AUTHORIZED' ? '#3b82f6' : 'var(--gold-primary)', letterSpacing: '0.5px' }}>{label}
+                              <div style={{ 
+                                fontSize: '0.8rem', 
+                                fontWeight: 900, 
+                                color: role === 'AUTHORIZED' ? '#3b82f6' : (role === 'MANAGER' ? '#10b981' : 'var(--gold-primary)'), 
+                                letterSpacing: '1px' 
+                              }}>
+                                {label}
                                 {role === 'OWNER' && (
                                 <span style={{ 
-                                  fontSize: '0.55rem', padding: '1px 5px', borderRadius: '4px', 
+                                  fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px',
                                   background: (business.owner_type === 'COMPANY' && person.id === business.owner_id) ? 'rgba(59, 130, 246, 0.1)' : 'rgba(212, 175, 55, 0.1)', 
                                   color: (business.owner_type === 'COMPANY' && person.id === business.owner_id) ? '#3b82f6' : 'var(--gold-primary)', 
-                                  border: '1px solid rgba(255,255,255,0.05)', fontWeight: 800 
+                                  border: '1px solid rgba(255,255,255,0.05)', fontWeight: 800,
+                                  letterSpacing: '0.5px'
                                 }}>
-                                  {(business.owner_type === 'COMPANY' && person.id === business.owner_id) ? 'REPRESENTATIVE (OWNER)' : 'INDIVIDUAL OWNER'}
+                                  {(business.owner_type === 'COMPANY' && person.id === business.owner_id) ? 'REPRESENTATIVE' : 'INDIVIDUAL OWNER'}
                                 </span>
                                 )}
                               </div>

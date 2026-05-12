@@ -13,6 +13,7 @@ import {
   Search,
   Scan,
   AlertOctagon,
+  ShieldCheck,
   X
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -112,6 +113,8 @@ interface Owner {
   type: OwnerType;
   name: string;
   qid?: string;
+  passport_number?: string;
+  id_type?: string;
   cr_number?: string;
   status: string;
   expiry?: string;
@@ -126,7 +129,9 @@ interface Owner {
 interface Signatory {
   id: string;
   name: string;
-  qid: string;
+  qid?: string;
+  passport_number?: string;
+  id_type?: string;
   status: string;
   expiry?: string;
 }
@@ -177,7 +182,12 @@ export const BusinessFormPage: React.FC = () => {
     { label: 'Manager Trade License', status: documents['Trade License'].status === 'uploaded' ? 'valid' : 'missing' }
   ], [owners, documents, manager]);
 
-  const canSubmit = validationItems.every(item => item.status === 'valid');
+  const canSubmit = useMemo(() => {
+    const hasRequiredFields = formData.cr_number.trim() !== '' && formData.name.trim() !== '';
+    const hasRequiredDocs = validationItems.every(item => item.status === 'valid');
+    return hasRequiredFields && hasRequiredDocs;
+  }, [formData.cr_number, formData.name, validationItems]);
+
   const progressPercent = Math.round((validationItems.filter(i => i.status === 'valid').length / validationItems.length) * 100);
 
 
@@ -190,7 +200,7 @@ export const BusinessFormPage: React.FC = () => {
   const [isOwnerModalOpen, setIsOwnerModalOpen] = useState(false);
   const [isSignatoryModalOpen, setIsSignatoryModalOpen] = useState(false);
   const [isScanningModalOpen, setIsScanningModalOpen] = useState(false);
-  const [scanType, setScanType] = useState<'qid' | 'cr'>('qid');
+  const [scanType, setScanType] = useState<'qid' | 'cr' | 'passport' | 'auto'>('auto');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
@@ -199,6 +209,10 @@ export const BusinessFormPage: React.FC = () => {
   const [selectedOwnerType, setSelectedOwnerType] = useState<OwnerType>('individual');
   const [corporateData, setCorporateData] = useState({ cr_number: '', name: '', expiry: '' });
   const [corporateOwner, setCorporateOwner] = useState<any>(null);
+
+  // 5. Manager Search State
+  const [managerSearchQuery, setManagerSearchQuery] = useState('');
+  const [managerSearchResults, setManagerSearchResults] = useState<any[]>([]);
 
   // PRODUCTION SCANNING COMPONENT (IFRAME BRIDGE)
   const ScanIdentityModal = () => {
@@ -227,7 +241,7 @@ export const BusinessFormPage: React.FC = () => {
                    <Scan size={18} color="#000" />
                 </div>
                 <h2 style={{ fontSize: '1rem', fontWeight: 900, color: '#fff', letterSpacing: '1px' }}>
-                  {scanType === 'qid' ? 'FORENSIC QID SCANNER' : 'DOCUMENT OCR SCANNER'}
+                  {scanType === 'qid' ? 'FORENSIC QID SCANNER' : scanType === 'passport' ? 'GLOBAL PASSPORT SCANNER' : scanType === 'auto' ? 'UNIVERSAL IDENTITY SCANNER' : 'DOCUMENT OCR SCANNER'}
                 </h2>
              </div>
              <X className="action-icon" onClick={() => setIsScanningModalOpen(false)} />
@@ -235,7 +249,7 @@ export const BusinessFormPage: React.FC = () => {
 
           <div style={{ flex: 1, background: '#000' }}>
              <iframe 
-               src={`/scan?embedded=true&type=${scanType}`} 
+               src={`/scan?embedded=true&doc_type=${scanType.toUpperCase()}`} 
                style={{ width: '100%', height: '100%', border: 'none' }}
                title="Hardware Scanner"
              />
@@ -257,6 +271,8 @@ export const BusinessFormPage: React.FC = () => {
           id: payload.id || uuidv4(),
           name: payload.name,
           qid: payload.qid_number,
+          passport_number: payload.passport_number,
+          id_type: payload.id_type || 'QID',
           cr_number: payload.cr_number,
           status: payload.status || 'VALID',
           expiry: payload.expiry_date
@@ -285,12 +301,19 @@ export const BusinessFormPage: React.FC = () => {
   }, [isOwnerModalOpen, isSignatoryModalOpen, ownerTypeStep, corporateData, selectedOwnerType]);
 
 
-  const handleSearchStakeholder = async (query: string, type: 'user' | 'business') => {
-    if (query.length < 3) return;
+  const handleSearchStakeholder = async (query: string, type: 'user' | 'business', target: 'general' | 'manager' = 'general') => {
+    if (query.length < 3) {
+      if (target === 'manager') setManagerSearchResults([]);
+      else setSearchResults([]);
+      return;
+    }
     try {
       const endpoint = type === 'user' ? `/users/search?query=${query}` : `/businesses/search/${query}`;
       const res = await ApiClient.get<any[]>(endpoint);
-      setSearchResults(Array.isArray(res) ? res : [res]);
+      const results = Array.isArray(res) ? res : [res];
+      
+      if (target === 'manager') setManagerSearchResults(results);
+      else setSearchResults(results);
     } catch (err) {
       console.error(err);
     }
@@ -349,7 +372,13 @@ export const BusinessFormPage: React.FC = () => {
   const removeSignatory = (id: string) => setSignatories(prev => prev.filter(s => s.id !== id));
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    if (!isDraft && !canSubmit) {
+
+    if (isDraft) {
+      if (!formData.cr_number.trim() || !formData.name.trim() || !formData.cr_expiry_date) {
+        setError('Business Name, CR Number, and Expiry Date are required even for drafts.');
+        return;
+      }
+    } else if (!canSubmit) {
       setError('Please complete all required fields and documents.');
       return;
     }
@@ -366,6 +395,9 @@ export const BusinessFormPage: React.FC = () => {
           type: o.type, 
           name: o.name, 
           cr_number: o.cr_number,
+          qid: o.qid,
+          passport_number: o.passport_number,
+          id_type: o.id_type || 'QID',
           nested_owner_id: o.type === 'corporate' ? o.nested_owner?.id : undefined
         })),
         authorized_signatories: signatories.map(s => s.id),
@@ -374,21 +406,34 @@ export const BusinessFormPage: React.FC = () => {
 
       const business = await ApiClient.post<any>('/businesses/upsert', payload);
 
-      // 2. Upload Documents
-      const uploadPromises = Object.entries(documents)
-        .filter(([_, data]) => data.file)
-        .map(([type, data]) => {
-          const docFormData = new FormData();
-          docFormData.append('document_type', type);
-          docFormData.append('file', data.file!);
-          docFormData.append('is_available', 'true');
-          return ApiClient.post(`/businesses/${business.cr_number}/documents`, docFormData);
-        });
+      // 2. Upload Documents (Sequential with individual error tracking)
+      const uploadedDocs = [];
+      const failedDocs = [];
 
-      await Promise.all(uploadPromises);
+      for (const [type, data] of Object.entries(documents)) {
+        if (data.file) {
+          try {
+            const docFormData = new FormData();
+            docFormData.append('document_type', type);
+            docFormData.append('file', data.file);
+            docFormData.append('is_available', 'true');
+            await ApiClient.post(`/businesses/${business.cr_number}/documents`, docFormData);
+            uploadedDocs.push(type);
+          } catch (uploadErr) {
+            console.error(`Failed to upload ${type}:`, uploadErr);
+            failedDocs.push(type);
+          }
+        }
+      }
 
-      setSuccess(true);
-      setTimeout(() => navigate(`/business/${business.cr_number}`), 2000);
+      if (failedDocs.length > 0) {
+        setError(`Business saved, but failed to upload: ${failedDocs.join(', ')}. Please try uploading them from the business details page.`);
+        // We still redirect because the business was created
+        setTimeout(() => navigate(`/business/${business.cr_number}`), 4000);
+      } else {
+        setSuccess(true);
+        setTimeout(() => navigate(`/business/${business.cr_number}`), 2000);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to process registration.');
     } finally {
@@ -439,8 +484,14 @@ export const BusinessFormPage: React.FC = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <button className="btn-luxury" onClick={() => handleSubmit(true)} style={{ height: '48px', padding: '0 24px', fontSize: '0.8rem' }}>
-            <Save size={16} /> SAVE AS DRAFT
+          <button 
+            className="btn-luxury" 
+            onClick={() => handleSubmit(true)} 
+            disabled={loading}
+            style={{ height: '48px', padding: '0 24px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            {loading ? <div className="spinner-mini" /> : <Save size={16} />}
+            SAVE AS DRAFT
           </button>
           <button className="btn-luxury" style={{ height: '48px', padding: '0 24px', fontSize: '0.8rem' }}>
              CLEAR ALL
@@ -449,9 +500,17 @@ export const BusinessFormPage: React.FC = () => {
             className="btn-gold" 
             disabled={!canSubmit || loading}
             onClick={() => handleSubmit(false)}
-            style={{ height: '48px', padding: '0 32px', fontSize: '0.85rem', fontWeight: 800 }}
+            style={{ height: '48px', padding: '0 32px', fontSize: '0.85rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '10px' }}
           >
-            REVIEW & SUBMIT <ArrowRight size={18} />
+            {loading ? (
+              <>
+                <div className="spinner-mini" /> PROCESSING...
+              </>
+            ) : (
+              <>
+                REVIEW & SUBMIT <ArrowRight size={18} />
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -579,7 +638,11 @@ export const BusinessFormPage: React.FC = () => {
                               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{owner.name}</div>
                               {owner.type === 'corporate' && <div style={{ fontSize: '0.6rem', padding: '2px 6px', background: 'rgba(255,215,0,0.1)', color: 'var(--gold-primary)', borderRadius: '4px', fontWeight: 800 }}>CORP</div>}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{owner.type === 'individual' ? 'QID: ' + owner.qid : 'CR: ' + owner.cr_number}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                              {owner.type === 'individual' 
+                                ? (owner.id_type === 'PASSPORT' ? 'Passport: ' + owner.passport_number : 'QID: ' + owner.qid) 
+                                : 'CR: ' + owner.cr_number}
+                            </div>
                             {owner.nested_owner && (
                               <div style={{ fontSize: '0.65rem', color: 'var(--gold-primary)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <User size={10} /> Rep: {owner.nested_owner.name}
@@ -615,7 +678,9 @@ export const BusinessFormPage: React.FC = () => {
                           <div className="avatar-mini" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>{s.name[0]}</div>
                           <div>
                             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{s.name}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>QID: {s.qid}</div>
+                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                               {s.id_type === 'PASSPORT' ? 'Passport: ' + s.passport_number : 'QID: ' + s.qid}
+                             </div>
                           </div>
                         </div>
                         <Trash2 size={16} className="action-icon" onClick={() => removeSignatory(s.id)} />
@@ -668,19 +733,52 @@ export const BusinessFormPage: React.FC = () => {
                <div>
                   <h3 style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginBottom: '20px' }}>MANAGER INCHARGE</h3>
                   {!manager ? (
-                    <div className="search-input-container">
-                      <Search size={18} className="search-icon" />
-                      <input className="input-luxury" placeholder="Search or scan Manager QID..." style={{ paddingLeft: '44px' }} />
-                      <div 
-                        className="scan-trigger-btn"
-                        onClick={() => {
-                          setScanType('qid');
-                          setIsScanningModalOpen(true);
-                        }}
-                      >
-                        <Scan size={16} />
-                        <span>SCAN ID</span>
+                    <div style={{ position: 'relative' }}>
+                      <div className="search-input-container">
+                        <Search size={18} className="search-icon" />
+                        <input 
+                          className="input-luxury" 
+                          placeholder="Search or scan Manager Name/QID..." 
+                          style={{ paddingLeft: '44px' }} 
+                          value={managerSearchQuery}
+                          onChange={(e) => {
+                            setManagerSearchQuery(e.target.value);
+                            handleSearchStakeholder(e.target.value, 'user', 'manager');
+                          }}
+                        />
+                        <div 
+                          className="scan-trigger-btn"
+                          style={{ right: '0px', background: 'var(--gold-primary)', color: '#000', border: 'none', position: 'relative', height: '44px', padding: '0 24px' }}
+                          onClick={() => {
+                            setScanType('auto');
+                            setIsScanningModalOpen(true);
+                          }}
+                        >
+                          <Scan size={16} />
+                          <span>SCAN IDENTITY</span>
+                        </div>
                       </div>
+
+                      {managerSearchResults.length > 0 && (
+                        <div className="luxury-card animate-pop-in" style={{ 
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
+                          marginTop: '8px', padding: '8px', maxHeight: '200px', overflowY: 'auto' 
+                        }}>
+                          {managerSearchResults.map(u => (
+                            <div key={u.id} className="search-result-item" style={{ marginBottom: '4px' }} onClick={() => {
+                              setManager(u);
+                              setManagerSearchQuery('');
+                              setManagerSearchResults([]);
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div className="avatar-mini" style={{ width: '28px', height: '28px', fontSize: '0.6rem' }}>{u.name[0]}</div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>{u.name}</div>
+                              </div>
+                              <Plus size={14} color="var(--gold-primary)" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="stakeholder-item active">
@@ -688,7 +786,9 @@ export const BusinessFormPage: React.FC = () => {
                           <div className="avatar-large">{manager.name[0]}</div>
                           <div>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>{manager.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>QID: {manager.qid}</div>
+                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                               {manager.id_type === 'PASSPORT' ? 'Passport: ' + manager.passport_number : 'QID: ' + manager.qid}
+                             </div>
                           </div>
                         </div>
                         <X size={18} className="action-icon" onClick={() => setManager(null)} />
@@ -914,13 +1014,14 @@ export const BusinessFormPage: React.FC = () => {
                     />
                     <div 
                       className="scan-trigger-btn"
+                      style={{ right: '0px', background: 'var(--gold-primary)', color: '#000', border: 'none', position: 'relative', height: '44px', padding: '0 24px' }}
                       onClick={() => {
-                        setScanType('qid');
+                        setScanType('auto');
                         setIsScanningModalOpen(true);
                       }}
                     >
                       <Scan size={16} />
-                      <span>SCAN ID</span>
+                      <span>SCAN IDENTITY</span>
                     </div>
                   </div>
                 </div>
@@ -971,13 +1072,14 @@ export const BusinessFormPage: React.FC = () => {
               />
               <div 
                 className="scan-trigger-btn"
+                style={{ right: '0px', background: 'var(--gold-primary)', color: '#000', border: 'none', position: 'relative', height: '44px', padding: '0 24px' }}
                 onClick={() => {
-                  setScanType('qid');
+                  setScanType('auto');
                   setIsScanningModalOpen(true);
                 }}
               >
                 <Scan size={16} />
-                <span>SCAN ID</span>
+                <span>SCAN IDENTITY</span>
               </div>
             </div>
 
@@ -988,7 +1090,9 @@ export const BusinessFormPage: React.FC = () => {
                       <div className="avatar-mini" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>{user.name[0]}</div>
                       <div>
                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{user.name}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>QID: {user.qid}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          {user.id_type === 'PASSPORT' ? 'Passport: ' + user.passport_number : 'QID: ' + user.qid_number}
+                        </div>
                       </div>
                     </div>
                     <Plus size={16} color="#10b981" />

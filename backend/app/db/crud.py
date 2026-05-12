@@ -9,6 +9,10 @@ async def get_user_by_qid(db: AsyncSession, qid_number: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.qid_number == qid_number))
     return result.scalars().first()
 
+async def get_user_by_passport(db: AsyncSession, passport_number: str) -> Optional[User]:
+    result = await db.execute(select(User).where(User.passport_number == passport_number))
+    return result.scalars().first()
+
 async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Optional[User]:
     import uuid
     # Check if identifier is a UUID
@@ -27,6 +31,7 @@ async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Option
             select(User).where(
                 or_(
                     User.qid_number == identifier,
+                    User.passport_number == identifier,
                     User.mobile_number == identifier
                 )
             )
@@ -34,14 +39,22 @@ async def get_user_by_qid_or_mobile(db: AsyncSession, identifier: str) -> Option
     return result.scalars().first()
 
 async def upsert_user(db: AsyncSession, user_data: dict) -> tuple[User, bool]:
-    # Auto-detect entity type based on ID length
+    # Auto-detect entity type based on ID length (for legacy QID/CR)
     qid = user_data.get("qid_number", "")
-    if len(qid) == 8:
+    passport = user_data.get("passport_number", "")
+    id_type = user_data.get("id_type", "QID")
+
+    if id_type == "QID" and len(qid) == 8:
         user_data["entity_type"] = "business"
     else:
         user_data["entity_type"] = "individual"
 
-    existing_user = await get_user_by_qid(db, qid)
+    # Search for existing user based on specific ID
+    existing_user = None
+    if id_type == "PASSPORT" and passport:
+        existing_user = await get_user_by_passport(db, passport)
+    elif qid:
+        existing_user = await get_user_by_qid(db, qid)
     
     if existing_user:
         # Update existing user

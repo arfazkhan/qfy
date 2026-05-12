@@ -23,6 +23,7 @@ interface UserResult {
   mobile_number: string;
   front_image: string;
   is_manual_edit: boolean;
+  associations?: { cr_number: string, name: string, role: string }[];
 }
 
 interface BusinessResult {
@@ -399,6 +400,61 @@ export const LookupPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {user.associations && user.associations.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 4px' }}>
+                       <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 900, letterSpacing: '1px' }}>BUSINESS ASSOCIATIONS</span>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                          {user.associations.map((assoc, idx) => {
+                            const getRoleStyles = (role: string) => {
+                              switch (role.toUpperCase()) {
+                                case 'OWNER': return { bg: 'rgba(255, 215, 0, 0.1)', border: 'rgba(255, 215, 0, 0.3)', text: 'var(--gold-primary)' };
+                                case 'MANAGER': return { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10b981' };
+                                case 'AUTHORIZED': return { bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)', text: '#3b82f6' };
+                                default: return { bg: 'rgba(255, 255, 255, 0.05)', border: 'rgba(255, 255, 255, 0.1)', text: '#fff' };
+                              }
+                            };
+                            const styles = getRoleStyles(assoc.role);
+                            
+                            return (
+                              <div 
+                                key={idx}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/business/${assoc.cr_number}`); }}
+                                style={{ 
+                                  padding: '8px 16px', 
+                                  background: styles.bg, 
+                                  border: `1px solid ${styles.border}`, 
+                                  borderRadius: '10px',
+                                  fontSize: '0.75rem',
+                                  color: styles.text,
+                                  fontWeight: 900,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  boxShadow: `0 4px 12px ${styles.bg}`
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                                  e.currentTarget.style.boxShadow = `0 8px 20px ${styles.bg}`;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                  e.currentTarget.style.boxShadow = `0 4px 12px ${styles.bg}`;
+                                }}
+                              >
+                                 <Building2 size={14} />
+                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.8rem', lineHeight: 1.2 }}>{assoc.name}</span>
+                                    <span style={{ fontSize: '0.55rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '1px', marginTop: '2px' }}>{assoc.role}</span>
+                                 </div>
+                              </div>
+                            );
+                          })}
+                       </div>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button

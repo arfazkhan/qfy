@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Upload,
   Scan,
@@ -16,13 +16,12 @@ import {
   Hash
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import { ApiClient } from '../api/client';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { useSettingsStore } from '../store/settingsStore';
 import { TauriStorageService } from '../services/TauriStorage';
-import { HardDrive, Cloud } from 'lucide-react';
+import InteractiveCropper from '../components/InteractiveCropper';
 
 interface ImageState {
   file: File | null;
@@ -37,7 +36,11 @@ export const ScanPage: React.FC = () => {
   const navigate = useNavigate();
   const frontInputRef = useRef<HTMLInputElement>(null);
   const backInputRef = useRef<HTMLInputElement>(null);
-  const { storageMode, setStorageMode } = useSettingsStore();
+  const { storageMode, docType: globalDocType } = useSettingsStore();
+  const [sessionDocType, setSessionDocType] = useState<'AUTO' | 'QID' | 'PASSPORT' | null>(null);
+  
+  // Use session override or global setting
+  const docType = sessionDocType || globalDocType;
 
   const [frontImage, setFrontImage] = useState<ImageState>({
     file: null, preview: null, base64: null, name: '', size: '', status: 'idle'
@@ -62,6 +65,30 @@ export const ScanPage: React.FC = () => {
   const [isEmbedded, setIsEmbedded] = useState(false);
   const [linkBusinessId, setLinkBusinessId] = useState<string | null>(null);
   const [linkRole, setLinkRole] = useState<string>('STAFF');
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [detectedCorners, setDetectedCorners] = useState<any[]>([]);
+  const [originalImageSize, setOriginalImageSize] = useState({ width: 0, height: 0 });
+
+  // Date format helpers
+  const toISODate = (dateStr: string) => {
+    if (!dateStr || !dateStr.includes('/')) return dateStr;
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    return dateStr;
+  };
+
+  const fromISODate = (isoStr: string) => {
+    if (!isoStr || !isoStr.includes('-')) return isoStr;
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return isoStr;
+  };
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -74,6 +101,15 @@ export const ScanPage: React.FC = () => {
     setIsEmbedded(embedded);
     setLinkBusinessId(bId);
     setLinkRole(role);
+    
+    const initialDocType = params.get('doc_type')?.toUpperCase();
+    if (initialDocType === 'PASSPORT') {
+      setSessionDocType('PASSPORT');
+    } else if (initialDocType === 'QID') {
+      setSessionDocType('QID');
+    } else if (initialDocType === 'AUTO') {
+      setSessionDocType('AUTO');
+    }
 
     if (qid) {
       setIsReScan(reScan);
@@ -85,9 +121,14 @@ export const ScanPage: React.FC = () => {
               name: response.user.name,
               name_ar: response.user.name_ar,
               qid_number: response.user.qid_number,
+              passport_number: response.user.passport_number,
               dob: response.user.dob,
               nationality: response.user.nationality,
-              expiry_date: response.user.expiry_date
+              occupation: response.user.occupation,
+              expiry_date: response.user.expiry_date,
+              passport_expiry: response.user.passport_expiry,
+              residency_type: response.user.residency_type,
+              employer: response.user.employer
             });
             if (response.user.mobile_number) {
               setMobileNumber(response.user.mobile_number.replace('+', ''));
@@ -102,26 +143,48 @@ export const ScanPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (scanResult?.user) {
-      setEditedData((prev: any) => ({ ...prev, ...scanResult.user }));
-    } else if (scanResult?.extracted_data) {
-      setEditedData((prev: any) => ({ ...prev, ...scanResult.extracted_data }));
+    if (!scanResult) return;
+
+    // Handle both flat and nested responses for backward/forward compatibility
+    const data = scanResult.user || scanResult.extracted_data || scanResult;
+    const extras = scanResult.extracted_fields || {};
+
+    // Merge: user fields first, then extracted_fields as fallback
+    const merged: any = {};
+    for (const [key, val] of Object.entries(data)) {
+      if (val != null && val !== '') merged[key] = val;
+    }
+    // Fill gaps from extracted_fields (raw OCR result)
+    for (const key of ['occupation', 'employer', 'residency_type', 'passport_expiry', 'expiry_date', 'dob', 'nationality']) {
+      if (!merged[key] && extras[key]) merged[key] = extras[key];
+    }
+    merged.id_type = data.id_type || extras.id_type || docType;
+
+    setEditedData((prev: any) => ({
+      ...prev,
+      ...merged
+    }));
+
+    const detectedType = data.id_type || extras.id_type;
+    if (detectedType && detectedType !== docType) {
+      setSessionDocType(detectedType);
     }
   }, [scanResult]);
 
   const getTargetFilename = (type: 'FRONT' | 'BACK') => {
     if (!editedData) return type === 'FRONT' ? 'PENDING_SCAN_FRONT.jpg' : 'PENDING_SCAN_BACK.jpg';
 
-    const name = editedData.name || 'UNKNOWN';
-    const qid = editedData.qid_number || 'UNKNOWN';
+    const id = (docType === 'PASSPORT' || (docType === 'AUTO' && scanResult?.user?.id_type === 'PASSPORT')) 
+      ? (editedData.passport_number || 'UNKNOWN') 
+      : (editedData.qid_number || 'UNKNOWN');
 
     // Sanitize name for filename
-    const sanitizedName = name.toUpperCase()
+    const sanitizedName = (editedData.name || 'UNKNOWN').toUpperCase()
       .trim()
       .replace(/\s+/g, '_')
       .replace(/[^A-Z0-9_]/g, '');
 
-    return `${sanitizedName}_${qid}_${type}.jpg`;
+    return `${sanitizedName}_${id}_${type}.jpg`;
   };
 
   const calculateIDStatus = (expiryDate: string) => {
@@ -172,12 +235,18 @@ export const ScanPage: React.FC = () => {
       setEditedData({
         name: '',
         qid_number: '',
+        passport_number: '',
+        id_type: docType,
         dob: '',
         nationality: '',
-        expiry_date: ''
+        occupation: '',
+        employer: '',
+        residency_type: '',
+        expiry_date: '',
+        passport_expiry: ''
       });
     }
-  }, [frontImage.preview, editedData]);
+  }, [frontImage.preview, editedData, docType]);
 
   const handleValueChange = (field: string, value: string) => {
     setEditedData((prev: any) => ({ ...prev, [field]: value }));
@@ -222,7 +291,31 @@ export const ScanPage: React.FC = () => {
       status: 'uploading'
     });
 
+    setPendingFile(file);
     await processScan(file);
+  };
+
+  const handleCropperConfirm = async (adjustedCorners: any[]) => {
+    setShowCropper(false);
+    if (!pendingFile) return;
+
+    setIsScanning(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', pendingFile);
+      formData.append('corners_json', JSON.stringify(adjustedCorners));
+      formData.append('doc_type', docType);
+
+      const response = await ApiClient.post<any>('/scan/extract', formData);
+      setScanResult(response);
+      setFrontImage(prev => ({ ...prev, status: 'processed' }));
+    } catch (err: any) {
+      setError(err.message || "Extraction failed");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleBackSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,9 +333,57 @@ export const ScanPage: React.FC = () => {
       size: formatFileSize(file.size),
       status: 'uploaded'
     });
+
+    if (frontImage.file) {
+      handleDualScan(frontImage.file, file);
+    }
+  };
+
+  const handleDualScan = async (frontFile?: File, backFile?: File) => {
+    const f = frontFile || frontImage.file;
+    const b = backFile || backImage.file;
+    if (!f || !b) return;
+    
+    setIsScanning(true);
+    setError(null);
+    setScanResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('front', f);
+      formData.append('back', b);
+      formData.append('doc_type', docType);
+
+      const response = await ApiClient.post<any>(`/scan/pair?doc_type=${docType}`, formData);
+      setScanResult(response);
+
+      if (response.processed_image) {
+        setPreviewUrl(`data:image/jpeg;base64,${response.processed_image}`);
+      }
+      
+      if (response.processed_back_image) {
+        setBackImage(prev => ({
+          ...prev,
+          preview: `data:image/jpeg;base64,${response.processed_back_image}`,
+          status: 'processed'
+        }));
+      }
+
+      setFrontImage(prev => ({ ...prev, status: 'processed' }));
+    } catch (err: any) {
+      setError(err.message || 'Dual scan failed. Please try again.');
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const processScan = async (file: File) => {
+    // If we have both front and back, use the dual scan for higher accuracy
+    if (backImage.file) {
+      await handleDualScan(file, backImage.file);
+      return;
+    }
+
     setIsScanning(true);
     setError(null);
     setScanResult(null);
@@ -251,12 +392,54 @@ export const ScanPage: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await ApiClient.post<any>('/scan', formData);
-      setScanResult(response);
+      const response = await ApiClient.post<any>(`/scan?doc_type=${docType}`, formData);
+      
+      // HYBRID LOGIC: If confidence is low, trigger manual crop
+      if (response.ocr_confidence < 0.85 && response.detected_corners) {
+        setDetectedCorners(response.detected_corners);
+        setOriginalImageSize({ 
+          width: response.original_width || 0, 
+          height: response.original_height || 0 
+        });
+        setShowCropper(true);
+        // We don't setScanResult yet, user needs to refine
+      } else {
+        setScanResult(response);
 
-      // Update preview to show the processed/warped image from backend
-      if (response.processed_image) {
-        setPreviewUrl(`data:image/jpeg;base64,${response.processed_image}`);
+        // Update local state for editing (filter nulls to avoid blanking fields)
+        const userData = response.user || response.extracted_data || response;
+        const filtered: any = {};
+        for (const [key, val] of Object.entries(userData)) {
+          if (val != null && val !== '') filtered[key] = val;
+        }
+        setEditedData((prev: any) => ({
+          ...prev,
+          ...filtered
+        }));
+
+        // Sync docType if backend auto-detected something else
+        const detectedType = response.user?.id_type || response.extracted_fields?.id_type;
+        if (detectedType && detectedType !== docType) {
+          setSessionDocType(detectedType);
+        }
+
+        // Update preview to show the processed/warped image from backend
+        if (response.processed_image) {
+          setPreviewUrl(`data:image/jpeg;base64,${response.processed_image}`);
+        }
+
+        // If backend returned a back image (Combined ID split), update backImage state
+        if (response.processed_back_image) {
+          const backPreview = `data:image/jpeg;base64,${response.processed_back_image}`;
+          setBackImage({
+            file: null,
+            preview: backPreview,
+            base64: backPreview,
+            name: 'SPLIT_BACK_SIDE.jpg',
+            size: 'Auto-split',
+            status: 'uploaded'
+          });
+        }
       }
 
       setFrontImage(prev => ({ ...prev, status: 'processed' }));
@@ -313,7 +496,8 @@ export const ScanPage: React.FC = () => {
 
       try {
         const userResponse = await ApiClient.post<any>('/users/upsert', userData);
-        await ApiClient.post(`/users/${userData.qid_number}/visit`, {
+        const idNumber = userData.id_type === 'PASSPORT' ? userData.passport_number : userData.qid_number;
+        await ApiClient.post(`/users/${idNumber}/visit`, {
           manual_rectification: modifiedFields.size > 0
         });
 
@@ -428,43 +612,7 @@ export const ScanPage: React.FC = () => {
         </div>
       )}
 
-      {/* Storage Mode Selector */}
-      {!isEmbedded && (
-        <div className="luxury-card" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '32px', height: '32px', borderRadius: '8px', 
-              background: 'rgba(212, 175, 55, 0.1)', display: 'flex', 
-              alignItems: 'center', justifyContent: 'center' 
-            }}>
-              <HardDrive size={16} color="var(--gold-primary)" />
-            </div>
-            <div>
-              <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>STORAGE MODE</h4>
-              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                {storageMode === 'LOCAL' ? 'Saving to Desktop Archive' : 'Saving to Cloud Infrastructure'}
-              </p>
-            </div>
-          </div>
 
-          <div className="storage-toggle-group">
-            <button 
-              onClick={() => setStorageMode('LOCAL')}
-              className={storageMode === 'LOCAL' ? 'storage-btn active' : 'storage-btn'}
-            >
-              <HardDrive size={14} />
-              Local
-            </button>
-            <button 
-              onClick={() => setStorageMode('CLOUD')}
-              className={storageMode === 'CLOUD' ? 'storage-btn active' : 'storage-btn'}
-            >
-              <Cloud size={14} />
-              Cloud
-            </button>
-          </div>
-        </div>
-      )}
 
       {duplicateData && (
         <div style={{
@@ -630,6 +778,25 @@ export const ScanPage: React.FC = () => {
         .phone-input-luxury .country-list::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.2);
         }
+        .method-card:hover {
+          transform: translateY(-4px);
+          background: rgba(212, 175, 55, 0.08) !important;
+          border-color: var(--gold-primary) !important;
+          box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .status-dot-active {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--success);
+          box-shadow: 0 0 10px var(--success);
+          animation: status-pulse 2s infinite;
+        }
+        @keyframes status-pulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.8); }
+          100% { opacity: 1; transform: scale(1); }
+        }
       `}</style>
       {/* Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
@@ -675,11 +842,78 @@ export const ScanPage: React.FC = () => {
           </div>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.9rem' }}>Upload or scan ID card to extract information</p>
         </div>
-        <button className="btn-luxury" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px' }}>
+        <button 
+          className="btn-luxury" 
+          onClick={() => setIsHelpOpen(true)}
+          style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px' }}
+        >
           <HelpCircle size={18} />
           Help Center
         </button>
       </div>
+
+      {/* Help Center Modal */}
+      {isHelpOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px'
+        }}>
+          <div className="luxury-card animate-pop-in" style={{ maxWidth: '600px', width: '100%', padding: '40px', position: 'relative' }}>
+            <button 
+              onClick={() => setIsHelpOpen(false)}
+              style={{ position: 'absolute', top: 24, right: 24, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
+            
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ 
+                width: '64px', height: '64px', borderRadius: '50%', 
+                background: 'rgba(197, 160, 89, 0.1)', border: '1px solid var(--gold-primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px'
+              }}>
+                <HelpCircle size={32} color="var(--gold-primary)" />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', letterSpacing: '1px' }}>HOW TO SCAN</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '8px' }}>Follow these simple steps for perfect extraction</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {[
+                { step: 1, title: 'Upload Front Side', text: 'Place your ID on the scanner or upload a clear photo. AI will automatically detect if it is a QID or Passport.' },
+                { step: 2, title: 'AI Extraction', text: 'Wait a few seconds for the system to read the data. You will see a scanning line across the preview.' },
+                { step: 3, title: 'Verify Details', text: 'Review the extracted data on the right panel. Click the edit icon to fix any minor reading errors.' },
+                { step: 4, title: 'Upload Back Side', text: 'Crucial: Upload the back side of the card to ensure all security features are logged.' },
+                { step: 5, title: 'Save & Log', text: 'Double check the Mobile Number and click "Save & Log" to finalize the compliance entry.' }
+              ].map(item => (
+                <div key={item.step} style={{ display: 'flex', gap: '20px' }}>
+                  <div style={{ 
+                    width: '32px', height: '32px', borderRadius: '50%', 
+                    background: 'var(--gold-primary)', color: '#000', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 900, flexShrink: 0, fontSize: '0.9rem'
+                  }}>
+                    {item.step}
+                  </div>
+                  <div>
+                    <h4 style={{ color: '#fff', fontSize: '1rem', fontWeight: 700, marginBottom: '4px' }}>{item.title}</h4>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', lineHeight: '1.5' }}>{item.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button 
+              className="btn-gold" 
+              style={{ width: '100%', height: '56px', marginTop: '40px' }}
+              onClick={() => setIsHelpOpen(false)}
+            >
+              GOT IT, LET'S SCAN
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="scan-page-grid">
         {/* Left Column - Upload Cards */}
@@ -711,26 +945,96 @@ export const ScanPage: React.FC = () => {
               {frontImage.preview ? (
                 <img src={previewUrl || frontImage.preview} className="scan-preview-image" alt="Front ID" />
               ) : (
-                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '24px' }}>
-                    <button
-                      className="btn-gold"
-                      style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px' }}
-                      onClick={() => {/* Trigger USB Scanner Logic */ }}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: '24px',
+                  width: '100%',
+                  maxWidth: '400px'
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%' }}>
+                    {/* USB Scan Method */}
+                    <div 
+                      className="method-card"
+                      onClick={() => {/* Trigger USB Logic */}}
+                      style={{
+                        padding: '24px 16px',
+                        background: 'rgba(212, 175, 55, 0.03)',
+                        border: '1px solid var(--glass-border-gold)',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
                     >
-                      <Scan size={24} />
-                      <span style={{ fontSize: '0.7rem' }}>SCAN FROM USB</span>
-                    </button>
-                    <button
-                      className="btn-luxury"
-                      style={{ padding: '16px 24px', height: 'auto', flexDirection: 'column', gap: '8px', width: '140px' }}
+                      <div className="status-dot-active" style={{ position: 'absolute', top: 12, right: 12 }} />
+                      <div style={{ 
+                        width: '48px', height: '48px', borderRadius: '12px', 
+                        background: 'rgba(212, 175, 55, 0.1)', display: 'flex', 
+                        alignItems: 'center', justifyContent: 'center', color: 'var(--gold-primary)'
+                      }}>
+                        <Scan size={24} />
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <h4 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#fff', letterSpacing: '1px' }}>USB SCANNER</h4>
+                        <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '4px' }}>Automatic Hardware Input</p>
+                      </div>
+                    </div>
+
+                    {/* File Upload Method */}
+                    <div 
+                      className="method-card"
                       onClick={() => frontInputRef.current?.click()}
+                      style={{
+                        padding: '24px 16px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
                     >
-                      <Upload size={24} />
-                      <span style={{ fontSize: '0.7rem' }}>UPLOAD IMAGE</span>
-                    </button>
+                      <div style={{ 
+                        width: '48px', height: '48px', borderRadius: '12px', 
+                        background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
+                        alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)'
+                      }}>
+                        <Upload size={24} />
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <h4 style={{ fontSize: '0.75rem', fontWeight: 900, color: '#fff', letterSpacing: '1px' }}>UPLOAD IMAGE</h4>
+                        <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '4px' }}>Local File / Drag & Drop</p>
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Drag and drop front side here as an alternative</p>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: 'rgba(0,0,0,0.2)',
+                    border: '1px solid var(--glass-border)'
+                  }}>
+                    <div style={{ padding: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                      <AlertCircle size={14} color="var(--text-muted)" />
+                    </div>
+                    <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                      Place ID on the glass for USB scanning or drag JPG/PNG files directly onto this area.
+                    </p>
+                  </div>
                 </div>
               )}
               {isScanning && (
@@ -842,7 +1146,16 @@ export const ScanPage: React.FC = () => {
           <div className="scan-extracted-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '1px' }}>EXTRACTED INFORMATION</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                {frontImage.file && backImage.file && !isScanning && (
+                  <button
+                    className="btn-gold animate-scale-up"
+                    style={{ padding: '8px 16px', fontSize: '0.65rem', height: '32px' }}
+                    onClick={() => handleDualScan()}
+                  >
+                    <Scan size={14} /> START DUAL SCAN
+                  </button>
+                )}
                 {editedData && (
                   (() => {
                     const statusInfo = calculateIDStatus(editedData.expiry_date);
@@ -861,9 +1174,14 @@ export const ScanPage: React.FC = () => {
               {[
                 { label: 'Full Name', field: 'name', value: editedData?.name },
                 { label: 'QID Number', field: 'qid_number', value: editedData?.qid_number },
+                { label: 'Passport Number', field: 'passport_number', value: editedData?.passport_number },
                 { label: 'Date of Birth', field: 'dob', value: editedData?.dob },
                 { label: 'Nationality', field: 'nationality', value: editedData?.nationality },
+                { label: 'Occupation', field: 'occupation', value: editedData?.occupation },
+                { label: 'Employer / Sponsor', field: 'employer', value: editedData?.employer },
+                { label: 'Residency Type', field: 'residency_type', value: editedData?.residency_type },
                 { label: 'Date of Expiry', field: 'expiry_date', value: editedData?.expiry_date },
+                { label: 'Passport Expiry', field: 'passport_expiry', value: editedData?.passport_expiry },
               ].map((row, i) => (
                 <div className="extraction-row" key={i}>
                   <span className="extraction-label">{row.label}</span>
@@ -871,18 +1189,24 @@ export const ScanPage: React.FC = () => {
                     {editingField === row.field ? (
                       <input
                         autoFocus
-                        type={(row.field === 'dob' || row.field === 'expiry_date') ? 'date' : 'text'}
+                        type={(row.field === 'dob' || row.field === 'expiry_date' || row.field === 'passport_expiry') ? 'date' : 'text'}
                         className="input-luxury"
                         style={{
                           padding: '4px 8px',
                           fontSize: '0.8rem',
                           height: '28px',
-                          width: (row.field === 'dob' || row.field === 'expiry_date') ? '180px' : '160px',
+                          width: (row.field === 'dob' || row.field === 'expiry_date' || row.field === 'passport_expiry') ? '180px' : '160px',
                           textAlign: 'right',
                           colorScheme: 'dark' // Ensure date picker looks good in dark mode
                         }}
-                        value={row.value || ''}
-                        onChange={(e) => handleValueChange(row.field, e.target.value)}
+                        value={(row.field === 'dob' || row.field === 'expiry_date' || row.field === 'passport_expiry') ? toISODate(row.value || '') : (row.value || '')}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (row.field === 'dob' || row.field === 'expiry_date' || row.field === 'passport_expiry') {
+                            val = fromISODate(val);
+                          }
+                          handleValueChange(row.field, val);
+                        }}
                         onBlur={() => setEditingField(null)}
                         onKeyDown={(e) => e.key === 'Enter' && setEditingField(null)}
                       />
@@ -920,7 +1244,7 @@ export const ScanPage: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Extraction Source</span>
                 <span style={{ color: scanResult ? 'var(--success)' : 'var(--text-muted)', fontWeight: 700 }}>
-                  {scanResult ? 'Front Side (OCR)' : 'None'}
+                  {scanResult ? (docType === 'PASSPORT' ? 'Hybrid MRZ + Vision' : 'Paddle Engine (V3)') : 'None'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '12px' }}>
@@ -1218,6 +1542,20 @@ export const ScanPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Cropper Overlay */}
+      {showCropper && frontImage.preview && (
+        <InteractiveCropper
+          imageSrc={frontImage.preview}
+          initialCorners={detectedCorners}
+          originalWidth={originalImageSize.width}
+          originalHeight={originalImageSize.height}
+          onConfirm={handleCropperConfirm}
+          onCancel={() => {
+            setShowCropper(false);
+            setFrontImage(prev => ({ ...prev, status: 'idle', preview: null }));
+          }}
+        />
       )}
     </div>
   );

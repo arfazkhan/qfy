@@ -1,7 +1,68 @@
 # Changelog
 
 All notable changes to the Q-FY project will be documented in this file.
+
+## [v2.2.0-Dual-Engine-OCR-Overhaul] - 2026-05-12
+
+### 🚀 Added
+- **Dual-Engine OCR Architecture**: Introduced parallel English + Arabic PaddleOCR engines for dramatically improved accuracy on bilingual Qatar ID cards.
+- **Spatial Text Parsing**: Built intelligent label-value association based on block position, replacing naive line-based extraction.
+- **Combined/Stacked ID Detection**: Auto-splits vertically stacked front+back images (height > width × 1.3) and processes as a pair.
+- **Front+Back Pair Scanning**: New `/scan/pair` endpoint processes both sides in parallel and merges results with field-level conflict resolution.
+- **Interactive Corner Cropper**: Added perspective-warp flow with manual corner adjustment for skewed or angled captures.
+- **OCR Accuracy Benchmark**: Created `test_ocr_accuracy.py` harness with ground-truth scoring across 4 sample images (97.4% accuracy achieved).
+- **Name Deduplication**: Fuzzy matching via `SequenceMatcher` eliminates duplicate words from dual-engine merge artifacts.
+
+### 🛠️ Changed
+- **OCR Preprocessing Simplified**: Removed destructive sharpening/CLAHE that garbled characters; now only upscales images below 900px.
+- **Executor Pool Expanded**: Increased `_ocr_executor` from 2 to 4 workers for true parallel dual-engine execution.
+- **Detection Resolution Bumped**: `det_limit_side_len` raised from 1280 to 1600 for finer text detection on high-res scans.
+- **Pydantic Schema Completed**: Added `occupation`, `residency_type`, and `passport_expiry` to `UserScanData` — previously silently stripped from API responses.
+- **ScanPage.tsx Hardened**: Fixed undefined `setDocType` crash, type mismatch on dual-scan button, and null-value overwrite race condition.
+
+### 🐞 Fixed
+- **Occupation/Employer Not Displaying**: Pydantic `UserScanData` model was missing these fields, causing silent serialization drop.
+- **Back-Side Misidentified as Passport**: Added keyword-density check (`_is_back_side()`) to distinguish QID back from standalone passport documents.
+- **Nationality Grabbing "QATAR" from Header**: Excluded top-20% image blocks and removed `قطر` from Arabic nationality map.
+- **QID Not Extracted from Serial Number**: Implemented targeted extraction of 11-digit QID from 14-digit serial format on back side.
+- **Doc Type Sync Crash**: `setDocType` was undefined in ScanPage — replaced with `setSessionDocType` and fixed response path to `response.user.id_type`.
+- **Duplicate React Import**: Merged standalone `useEffect` import into main React import line.
+
+## [v2.1.0-Surya-Sunset-Paddle-Optimization] - 2026-05-10
  
+### 🚀 Added
+- **Bilingual Arabic/English Engine**: Transitioned to PaddleOCR PP-OCRv3 for native multilingual support, significantly improving extraction of Occupation and QID fields.
+- **Eastern-to-Western Numeral Support**: Added automatic translation for Arabic numerals and robust date padding for truncated scans.
+- **Forensic Refinements**: Implemented 'NaMO' alias support and English-priority name extraction to ensure clean, readable record data.
+- **Stability Overrides**: Hardened the PaddleOCR runtime with Windows-specific stability flags to prevent PIR API and oneDNN related crashes.
+
+### 🗑️ Removed
+- **Surya OCR Deprecation**: Fully sunsetted the Surya OCR engine integration to eliminate inference instability and technical debt.
+- **Legacy Surya Artifacts**: Purged redundant environment configurations and bypassed Surya initialization in the production pipeline.
+
+### 🐞 Fixed
+- **OCR Field Precision**: Resolved a common issue where long names were truncated or split into separate records during the scanning process.
+- **Environment Isolation**: Corrected a dependency conflict on Windows by enforcing strict local package priority for PyTorch and Paddle.
+
+## [v2.0.1-Global-Passport-Support] - 2026-05-06
+ 
+### 🚀 Added
+- **Global Passport Support**: Integrated high-accuracy extraction for international passports using Vision LLM (`amazon/nova-2-lite-v1`) with specialized MRZ-aware prompting.
+- **Passport Scan Mode**: Added a dedicated "GLOBAL PASSPORT" mode in the identity scanner UI, enabling compliant data capture for any country in the world.
+- **Adaptive JSON Parsing**: Implemented robust JSON cleaning in the OCR service to handle varied LLM response formats (e.g., markdown code blocks).
+
+### 🛠️ Changed
+- **Unified OCR Architecture**: Consolidated identity extraction into a single, high-performance `OCRService` that intelligently routes between local PaddleOCR and Vision LLM.
+- **Identity Schema Hardening**: Updated the business registration wizard to explicitly handle both QID and Passport identifiers for owners and signatories.
+- **Validation Engine Upgrade**: Hardened the backend validation and duplicate detection logic to treat `passport_number` as a unique primary identifier.
+
+### 🗑️ Removed
+- **Legacy Research Bloat**: Purged the deprecated `d:\qfy\passporteye` and `d:\qfy\ocr` research directories to streamline the core repository.
+
+### 🐞 Fixed
+- **OCR Runtime Stability**: Resolved a critical `NameError` crash in the OCR service caused by missing library imports.
+- **Missing Identification Fields**: Fixed a data mapping gap in `BusinessFormPage.tsx` where passport details were not being correctly persisted during registration.
+
 ## [v2.0.0-Forensic-Registration-MVP] - 2026-05-06
  
 ### 🚀 Added

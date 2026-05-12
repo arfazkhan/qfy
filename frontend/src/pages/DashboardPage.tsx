@@ -69,16 +69,13 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [stats, setStats] = useState({
-    total_scans: 0,
-    total_scans_trend: 0,
-    individual_visits: 0,
-    individual_visits_trend: 0,
-    business_visits: 0,
-    business_visits_trend: 0,
-    expiring_soon: 0,
-    expiring_soon_trend: 0,
-    invalid_ids: 0,
-    invalid_ids_trend: 0
+    total_identities: 0,
+    total_businesses: 0,
+    compliance_score: 0,
+    risk_critical: 0,
+    risk_warning: 0,
+    throughput_24h: 0,
+    scan_trend: 0
   });
   const [qidSearch, setQidSearch] = useState('');
   const [searchType, setSearchType] = useState<'individual' | 'business'>('individual');
@@ -228,16 +225,13 @@ export const DashboardPage: React.FC = () => {
     try {
       const data = await ApiClient.request<any>('/users/stats/summary', { auth: true });
       setStats({
-        total_scans: data?.total_scans ?? 0,
-        total_scans_trend: data?.total_scans_trend ?? 0,
-        individual_visits: data?.individual_visits ?? 0,
-        individual_visits_trend: data?.individual_visits_trend ?? 0,
-        business_visits: data?.business_visits ?? 0,
-        business_visits_trend: data?.business_visits_trend ?? 0,
-        expiring_soon: data?.expiring_soon ?? 0,
-        expiring_soon_trend: data?.expiring_soon_trend ?? 0,
-        invalid_ids: data?.invalid_ids ?? 0,
-        invalid_ids_trend: data?.invalid_ids_trend ?? 0
+        total_identities: data?.total_identities ?? 0,
+        total_businesses: data?.total_businesses ?? 0,
+        compliance_score: data?.compliance_score ?? 0,
+        risk_critical: data?.risk_critical ?? 0,
+        risk_warning: data?.risk_warning ?? 0,
+        throughput_24h: data?.throughput_24h ?? 0,
+        scan_trend: data?.scan_trend ?? 0
       });
     } catch (err) {
       console.error("Failed to fetch dashboard stats", err);
@@ -539,6 +533,42 @@ export const DashboardPage: React.FC = () => {
                   onClick={handleSearch}
                 >
                   SEARCH
+                </button>
+              </div>
+
+              <div style={{ 
+                marginTop: '24px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                gap: '12px' 
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  width: '100%', 
+                  color: 'var(--text-muted)' 
+                }}>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '1px' }}>OR</span>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
+                </div>
+                
+                <button 
+                  className="btn-luxury" 
+                  onClick={handleScan}
+                  style={{ 
+                    width: '100%', 
+                    height: '50px', 
+                    background: 'rgba(197, 160, 89, 0.03)', 
+                    border: '1px dashed var(--gold-transparent)',
+                    color: 'var(--gold-primary)',
+                    fontSize: '0.8rem',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  <Scan size={16} /> SCAN A NEW ID
                 </button>
               </div>
             </div>
@@ -849,44 +879,46 @@ export const DashboardPage: React.FC = () => {
           gap: '20px'
         }}>
           <StatCard
-            icon={<Users size={20} color="#fbbf24" />}
-            label="TOTAL VISITS"
-            value={stats.total_scans.toLocaleString()}
-            trend={`${stats.total_scans_trend > 0 ? '+' : ''}${stats.total_scans_trend}%`}
-            isPositive={stats.total_scans_trend >= 0}
-            colorClass="glow-amber"
-          />
-          <StatCard
-            icon={<UserIcon size={20} color="#10b981" />}
-            label="INDIVIDUAL VISITS"
-            value={stats.individual_visits.toLocaleString()}
-            trend={`${stats.individual_visits_trend > 0 ? '+' : ''}${stats.individual_visits_trend}%`}
-            isPositive={stats.individual_visits_trend >= 0}
+            icon={<CheckCircle2 size={20} color="#10b981" />}
+            label="COMPLIANCE HEALTH"
+            value={`${stats.compliance_score}%`}
+            trend="Live Index"
+            isPositive={stats.compliance_score > 80}
             colorClass="glow-green"
           />
           <StatCard
+            icon={<Shield size={20} color="#fbbf24" />}
+            label="IDENTITIES VERIFIED"
+            value={stats.total_identities.toLocaleString()}
+            trend="Active Entities"
+            isPositive={true}
+            colorClass="glow-amber"
+          />
+          <StatCard
             icon={<Building2 size={20} color="#3b82f6" />}
-            label="BUSINESS VISITS"
-            value={stats.business_visits.toLocaleString()}
-            trend={`${stats.business_visits_trend > 0 ? '+' : ''}${stats.business_visits_trend}%`}
-            isPositive={stats.business_visits_trend >= 0}
+            label="24H THROUGHPUT"
+            subLabel="Visits/Scans"
+            value={stats.throughput_24h.toLocaleString()}
+            trend={`${stats.scan_trend > 0 ? '+' : ''}${stats.scan_trend}%`}
+            isPositive={stats.scan_trend >= 0}
             colorClass="glow-blue"
           />
           <StatCard
             icon={<Clock size={20} color="#f97316" />}
-            label="EXPIRING SOON"
-            subLabel="(≤ 30 DAYS)"
-            value={stats.expiring_soon.toLocaleString()}
-            trend={`${stats.expiring_soon_trend > 0 ? '+' : ''}${stats.expiring_soon_trend}%`}
-            isPositive={stats.expiring_soon_trend <= 0} // For expiring, negative trend is often good (fewer expiring)
+            label="RISK: WARNING"
+            subLabel="(EXPIRING < 30D)"
+            value={stats.risk_warning.toLocaleString()}
+            trend="Requires Action"
+            isPositive={false}
             colorClass="glow-orange"
           />
           <StatCard
-            icon={<Shield size={20} color="#ef4444" />}
-            label="INVALID IDS / CR"
-            value={stats.invalid_ids.toLocaleString()}
-            trend={`${stats.invalid_ids_trend > 0 ? '+' : ''}${stats.invalid_ids_trend}%`}
-            isPositive={stats.invalid_ids_trend <= 0} // For invalid, negative trend is good
+            icon={<AlertOctagon size={20} color="#ef4444" />}
+            label="RISK: CRITICAL"
+            subLabel="(EXPIRED / INVALID)"
+            value={stats.risk_critical.toLocaleString()}
+            trend="IMMEDIATE"
+            isPositive={false}
             colorClass="glow-red"
           />
         </div>

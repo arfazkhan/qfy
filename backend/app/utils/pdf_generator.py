@@ -62,6 +62,7 @@ def generate_business_report(business_data: dict) -> BytesIO:
         [Paragraph("CR Number:", label_style), Paragraph(business_data.get('cr_number', 'N/A'), value_style)],
         [Paragraph("CR Expiry:", label_style), Paragraph(business_data.get('cr_expiry_date', 'N/A'), value_style)],
         [Paragraph("Status:", label_style), Paragraph(business_data.get('status', 'N/A'), value_style)],
+        [Paragraph("Manager Incharge:", label_style), Paragraph(business_data.get('manager', {}).get('name', 'N/A') if business_data.get('manager') else 'N/A', value_style)],
         [Paragraph("Address:", label_style), Paragraph(business_data.get('address', 'N/A'), value_style)],
         [Paragraph("Mobile:", label_style), Paragraph(business_data.get('mobile', 'N/A'), value_style)],
     ]

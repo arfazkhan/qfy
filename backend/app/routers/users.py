@@ -49,48 +49,37 @@ async def get_analytics(
     """
     Get detailed analytics for the dashboard with trends.
     """
-    from datetime import timedelta
+    # Compliance
+    from ..db.business_models import Business
+    total_businesses = await db.scalar(select(func.count(Business.id))) or 0
+    compliant_businesses = await db.scalar(select(func.count(Business.id)).where(Business.status == "COMPLIANT")) or 0
+    compliance_score = round((compliant_businesses / total_businesses * 100), 1) if total_businesses > 0 else 100.0
     
-    today = date.today()
-    yesterday = today - timedelta(days=1)
+    # Activity trends (Last 24h vs Previous 24h)
+    from datetime import datetime as dt
+    now = dt.utcnow()
+    last_24h = now - timedelta(hours=24)
+    prev_24h = last_24h - timedelta(hours=24)
     
-    # Current Stats
-    total_users = await db.scalar(select(func.count(User.id)))
-    total_scans = await db.scalar(select(func.sum(User.visit_count))) or 0
+    scans_24h = await db.scalar(select(func.sum(User.visit_count)).where(User.last_seen_at >= last_24h)) or 0
+    scans_prev = await db.scalar(select(func.sum(User.visit_count)).where(User.last_seen_at >= prev_24h).where(User.last_seen_at < last_24h)) or 0
     
-    # Entity Specific Stats
-    individual_users = await db.scalar(select(func.count(User.id)).where(User.entity_type == "individual")) or 0
-    business_users = await db.scalar(select(func.count(User.id)).where(User.entity_type == "business")) or 0
-    
-    individual_visits = await db.scalar(select(func.sum(User.visit_count)).where(User.entity_type == "individual")) or 0
-    business_visits = await db.scalar(select(func.sum(User.visit_count)).where(User.entity_type == "business")) or 0
-    
-    # New today
-    new_today = await db.scalar(select(func.count(User.id)).where(func.date(User.created_at) == today))
-    
-    # Expiring/Invalid
-    expiring_soon = await db.scalar(
-        select(func.count(User.id))
-        .where(User.expiry_date >= today)
-        .where(User.expiry_date <= today + timedelta(days=30))
-    )
-    invalid = await db.scalar(
-        select(func.count(User.id))
-        .where(User.expiry_date < today)
-    )
-    
+    scan_trend = round(((scans_24h - scans_prev) / scans_prev * 100), 1) if scans_prev > 0 else 0.0
+
     return {
+        "total_identities": total_users,
+        "total_businesses": total_businesses,
+        "compliance_score": compliance_score,
+        "risk_critical": invalid or 0,
+        "risk_warning": expiring_soon or 0,
+        "throughput_24h": scans_24h,
+        "scan_trend": scan_trend,
+        # Legacy fields for minimal break
         "total_scans": total_scans,
-        "total_scans_trend": 0.0,
         "individual_visits": individual_visits,
-        "individual_visits_trend": 0.0,
         "business_visits": business_visits,
-        "business_visits_trend": 0.0,
         "expiring_soon": expiring_soon or 0,
-        "expiring_soon_trend": 0.0,
-        "invalid_ids": invalid or 0,
-        "invalid_ids_trend": 0.0,
-        "new_today": new_today or 0
+        "invalid_ids": invalid or 0
     }
 
 @router.get("/search", response_model=List[UserRecord])
@@ -265,7 +254,16 @@ async def upsert_customer(
     # Duplicate Check Logic
     force = user_data.pop('force', False)
     if not force:
-        existing = await get_user_by_qid(db, qid)
+        id_type = user_data.get('id_type', 'QID')
+        passport = user_data.get('passport_number')
+        
+        existing = None
+        if id_type == 'PASSPORT' and passport:
+            from ..db.crud import get_user_by_passport
+            existing = await get_user_by_passport(db, passport)
+        elif qid:
+            existing = await get_user_by_qid(db, qid)
+            
         if existing:
             from fastapi.responses import JSONResponse
             from fastapi.encoders import jsonable_encoder

@@ -8,7 +8,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    qid_number = Column(String, unique=True, index=True, nullable=False)
+    qid_number = Column(String, unique=True, index=True, nullable=True)
+    passport_number = Column(String, unique=True, index=True, nullable=True)
+    id_type = Column(String, default="QID", index=True) # QID, PASSPORT
     entity_type = Column(String, default="individual", index=True) # individual, business
     name = Column(String, nullable=False)
     expiry_date = Column(Date, nullable=False)

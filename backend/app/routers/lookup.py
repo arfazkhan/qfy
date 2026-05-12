@@ -7,7 +7,7 @@ from ..db.database import get_db
 from ..db.models import User
 from ..schemas import UserRecord
 from ..middleware.auth import get_current_user
-from ..db.business_models import Business, BusinessDocument
+from ..db.business_models import Business, BusinessDocument, BusinessMember
 
 router = APIRouter(prefix="/lookup", tags=["lookup"])
 
@@ -96,6 +96,45 @@ async def search_users(
     
     result = await db.execute(query)
     users = result.scalars().all()
+    
+    # 2. Fetch Business Associations for these users
+    user_ids = [u.id for u in users]
+    if user_ids:
+        # Fetch Associations (Unified)
+        # Using hex strings for keys to avoid any UUID object comparison issues
+        user_assocs = {uid.hex if isinstance(uid, uuid.UUID) else str(uid).replace('-', ''): [] for uid in user_ids}
+            
+        # A. From BusinessMember table
+        m_q = select(BusinessMember, Business.name, Business.cr_number)\
+            .join(Business, Business.id == BusinessMember.business_id)\
+            .where(BusinessMember.user_id.in_(user_ids))
+        m_res = await db.execute(m_q)
+        for bm, b_name, b_cr in m_res.all():
+            u_hex = bm.user_id.hex if isinstance(bm.user_id, uuid.UUID) else str(bm.user_id).replace('-', '')
+            if u_hex in user_assocs:
+                user_assocs[u_hex].append({"cr_number": b_cr, "name": b_name, "role": bm.role})
+            
+        # B. From Primary links in Business table (fallback/legacy)
+        for role_field in ["owner_id", "manager_id", "authorized_person_id"]:
+            role_name = "OWNER" if "owner" in role_field else ("MANAGER" if "manager" in role_field else "AUTHORIZED")
+            field_attr = getattr(Business, role_field)
+            p_q = select(Business.cr_number, Business.name, field_attr).where(field_attr.in_(user_ids))
+            p_res = await db.execute(p_q)
+            for b_cr, b_name, u_id in p_res.all():
+                if u_id:
+                    u_hex = u_id.hex if isinstance(u_id, uuid.UUID) else str(u_id).replace('-', '')
+                    if u_hex in user_assocs:
+                        # Avoid duplicates if already in BusinessMember
+                        if not any(a["cr_number"] == b_cr and a["role"] == role_name for a in user_assocs[u_hex]):
+                            user_assocs[u_hex].append({"cr_number": b_cr, "name": b_name, "role": role_name})
+            
+        return [
+            UserRecord.model_validate({
+                **u.__dict__,
+                "associations": user_assocs.get(u.id.hex if isinstance(u.id, uuid.UUID) else str(u.id).replace('-', ''), [])
+            })
+            for u in users
+        ]
     
     return [UserRecord.model_validate(u) for u in users]
 
